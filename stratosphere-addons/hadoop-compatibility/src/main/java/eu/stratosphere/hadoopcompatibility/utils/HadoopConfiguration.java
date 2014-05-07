@@ -11,26 +11,24 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
+package eu.stratosphere.hadoopcompatibility.utils;
 
-import java.io.Serializable;
+import java.util.Map;
 
-import eu.stratosphere.types.Record;
+import org.apache.hadoop.mapred.JobConf;
 
+import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
 
 /**
- * An interface describing a class that is able to 
- * convert Hadoop types into Stratosphere's Record model.
- * 
- * The converter must be Serializable.
- * 
- * Stratosphere provides a DefaultHadoopTypeConverter. Custom implementations should
- * chain the type converters.
+ * merge hadoopConf into jobConf. This is necessary for the hdfs configuration
+
  */
-public interface HadoopTypeConverter<K, V> extends Serializable {
-	
-	/**
-	 * Convert a Hadoop type to a Stratosphere type.
-	 */
-	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue);
+
+public class HadoopConfiguration {
+	public static void mergeHadoopConf(JobConf jobConf) {
+		org.apache.hadoop.conf.Configuration hadoopConf = DistributedFileSystem.getHadoopConfiguration();
+		for (Map.Entry<String, String> e : hadoopConf) {
+			jobConf.set(e.getKey(), e.getValue());
+		}
+	}
 }

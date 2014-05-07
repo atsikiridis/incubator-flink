@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -11,27 +11,17 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
+package eu.stratosphere.hadoopcompatibility.wrapper;
 
-import java.io.Serializable;
-
-import eu.stratosphere.types.Record;
+import org.apache.hadoop.util.Progressable;
 
 /**
- * An interface describing a class that is able to
- * convert Stratosphere's Record into Hadoop types model.
+ * This is a dummy progress
  *
- * The converter must be Serializable.
- *
- * Stratosphere provides a DefaultStratosphereTypeConverter. Custom implementations should
- * chain the type converters.
  */
-public interface StratosphereTypeConverter<K,V> extends Serializable {
+public class HadoopDummyProgressable implements Progressable {
+	@Override
+	public void progress() {
 
-	/**
-	 * Convert a Stratosphere type to a Hadoop type.
-	 */
-	public K convertKey(Record stratosphereRecord);
-
-	public V convertValue(Record stratosphereRecord);
+	}
 }

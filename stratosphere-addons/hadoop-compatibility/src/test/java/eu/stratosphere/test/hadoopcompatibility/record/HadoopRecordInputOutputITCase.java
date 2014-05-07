@@ -11,10 +11,10 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.test.hadoopcompatibility.mapred.record;
+package eu.stratosphere.test.hadoopcompatibility.record;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.hadoopcompatibility.mapred.record.example.WordCountWithOutputFormat;
+import eu.stratosphere.hadoopcompatibility.record.example.WordCountWithOutputFormat;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 
