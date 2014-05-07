@@ -10,56 +10,31 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
+package eu.stratosphere.test.hadoopcompatibility;
 
-package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
+import eu.stratosphere.hadoopcompatibility.example.WordCount;
+import eu.stratosphere.test.testdata.WordCountData;
+import eu.stratosphere.test.util.JavaProgramTestBase;
 
-import org.apache.hadoop.mapred.Counters.Counter;
-import org.apache.hadoop.mapred.InputSplit;
-import org.apache.hadoop.mapred.Reporter;
-
-/**
- * This is a dummy progress monitor / reporter
- *
- */
-public class HadoopDummyReporter implements Reporter {
-
+public class HadoopInputOutputITCase extends JavaProgramTestBase {
+	
+	protected String textPath;
+	protected String resultPath;
+	
+	
 	@Override
-	public void progress() {
+	protected void preSubmit() throws Exception {
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
+		resultPath = getTempDirPath("result");
 	}
-
+	
 	@Override
-	public void setStatus(String status) {
-
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
 	}
-
+	
 	@Override
-	public Counter getCounter(Enum<?> name) {
-		return null;
+	protected void testProgram() throws Exception {
+		WordCount.main(new String[] { textPath, resultPath });
 	}
-
-	@Override
-	public Counter getCounter(String group, String name) {
-		return null;
-	}
-
-	@Override
-	public void incrCounter(Enum<?> key, long amount) {
-
-	}
-
-	@Override
-	public void incrCounter(String group, String counter, long amount) {
-
-	}
-
-	@Override
-	public InputSplit getInputSplit() throws UnsupportedOperationException {
-		return null;
-	}
-
-	@Override
-	public float getProgress() {
-		return 0;
-	}
-
 }

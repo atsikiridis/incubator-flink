@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
+package eu.stratosphere.hadoopcompatibility.wrapper;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -50,7 +50,8 @@ public class HadoopFileOutputCommitter extends FileOutputCommitter implements Se
 	}
 
 	private static boolean getOutputDirMarking(JobConf conf) {
-		return conf.getBoolean(SUCCESSFUL_JOB_OUTPUT_DIR_MARKER,  true);
+		return conf.getBoolean(SUCCESSFUL_JOB_OUTPUT_DIR_MARKER,
+			true);
 	}
 
 	private void markSuccessfulOutputDir(JobConf conf)

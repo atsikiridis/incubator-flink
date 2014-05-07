@@ -11,19 +11,25 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.compiler;
+package eu.stratosphere.hadoopcompatibility.record.datatypes;
 
-import eu.stratosphere.api.common.io.statistics.BaseStatistics;
+import org.apache.hadoop.io.WritableComparable;
 
-/**
- * A variant of the data statistics that never caches.
- */
-public class NonCachingDataStatistics extends DataStatistics {
+import eu.stratosphere.types.Key;
+
+public class WritableComparableWrapper<T extends WritableComparable<T>> extends WritableWrapper<T> implements Key<WritableComparableWrapper<T>> {
+	private static final long serialVersionUID = 1L;
 	
-	public BaseStatistics getBaseStatistics(String inputIdentifier) {
-		return null;
+	public WritableComparableWrapper() {
+		super();
 	}
 	
-	public void cacheBaseStatistics(BaseStatistics statistics, String identifyer) {
+	public WritableComparableWrapper(T toWrap) {
+		super(toWrap);
+	}
+
+	@Override
+	public int compareTo(WritableComparableWrapper<T> o) {
+		return super.value().compareTo(o.value());
 	}
 }
