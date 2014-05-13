@@ -10,31 +10,30 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.test.hadoopcompatibility.mapred;
+package eu.stratosphere.test.hadoopcompatibility.mapred.driver;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.WordCount;
+import eu.stratosphere.hadoopcompatibility.mapred.example.HadoopWordCountVariations;
+import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
-public class HadoopInputOutputITCase extends JavaProgramTestBase {
-	
+public class HadoopDriverCustomPartitioner extends HadoopTestBase {
+
 	protected String textPath;
 	protected String resultPath;
-	
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.WordCountCustomPartitioner.main(new String[]{textPath, resultPath});
 	}
 }

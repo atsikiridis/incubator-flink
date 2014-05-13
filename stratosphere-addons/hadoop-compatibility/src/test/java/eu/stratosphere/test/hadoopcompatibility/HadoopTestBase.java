@@ -10,31 +10,31 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.test.hadoopcompatibility.mapred;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.WordCount;
-import eu.stratosphere.test.testdata.WordCountData;
+package eu.stratosphere.test.hadoopcompatibility;
+
 import eu.stratosphere.test.util.JavaProgramTestBase;
+import org.junit.Assert;
 
-public class HadoopInputOutputITCase extends JavaProgramTestBase {
-	
-	protected String textPath;
-	protected String resultPath;
-	
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
+import java.util.ArrayList;
+import java.util.Arrays;
+
+
+public abstract class HadoopTestBase extends JavaProgramTestBase {
+
+	/**
+	 * Hadoop tests should not sort the result.
+	 */
+	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+		ArrayList<String> list = new ArrayList<String>();
+		readAllResultLines(list, resultPath, false);
+
+		String[] result = list.toArray(new String[list.size()]);
+		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
+		Arrays.sort(expected);
+
+		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
+		Assert.assertArrayEquals(expected, result);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
-	}
-	
-	@Override
-	protected void testProgram() throws Exception {
-		WordCount.main(new String[]{textPath, resultPath});
-	}
+
 }

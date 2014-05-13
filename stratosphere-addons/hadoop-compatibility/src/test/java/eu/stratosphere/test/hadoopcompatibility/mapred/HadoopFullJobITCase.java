@@ -12,29 +12,30 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.hadoopcompatibility.mapred;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.WordCount;
+import eu.stratosphere.hadoopcompatibility.mapred.example.FullWordCount;
+import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
-public class HadoopInputOutputITCase extends JavaProgramTestBase {
-	
+public class HadoopFullJobITCase extends HadoopTestBase {
+
 	protected String textPath;
 	protected String resultPath;
-	
-	
+
+
+
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.main(new String[]{textPath, resultPath});
+		FullWordCount.main(new String[]{textPath, resultPath});
 	}
 }
