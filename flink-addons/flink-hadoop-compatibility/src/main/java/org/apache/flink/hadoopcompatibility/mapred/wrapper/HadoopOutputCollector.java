@@ -60,7 +60,12 @@ public final class HadoopOutputCollector<KEY extends WritableComparable, VALUE e
 
 		this.outTuple.f0 = key;
 		this.outTuple.f1 = val;
-		this.flinkCollector.collect(outTuple);
+		if (this.flinkCollector != null) {
+			this.flinkCollector.collect(outTuple);
+		}
+		else {
+			throw new RuntimeException("There is no Flink Collector set to be wrapped by this HadoopOutputCollector " +
+					"object. The set method must be called in advance.");
+		}
 	}
-	
 }

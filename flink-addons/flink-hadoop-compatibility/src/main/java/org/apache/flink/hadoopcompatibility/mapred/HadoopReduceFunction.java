@@ -123,6 +123,7 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 	 * Custom serialization methods.
 	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
 	 */
+
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		
 		out.writeObject(reducer.getClass());

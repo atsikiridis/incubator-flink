@@ -34,7 +34,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.hadoopcompatibility.mapreduce.HadoopInputFormat;
 import org.apache.flink.hadoopcompatibility.mapreduce.HadoopOutputFormat;
-
 /**
  * Implements a word count which takes the input file and counts the number of
  * occurrences of each word in the file and writes the result back to disk.

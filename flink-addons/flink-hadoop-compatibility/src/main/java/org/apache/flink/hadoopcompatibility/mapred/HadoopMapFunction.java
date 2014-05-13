@@ -112,7 +112,7 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 		final WritableTypeInfo<VALUEOUT> valueTypleInfo = new WritableTypeInfo<VALUEOUT>(outValClass);
 		return new TupleTypeInfo<Tuple2<KEYOUT,VALUEOUT>>(keyTypeInfo, valueTypleInfo);
 	}
-	
+
 	/**
 	 * Custom serialization methods.
 	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
@@ -131,5 +131,3 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 		jobConf = new JobConf();
 		jobConf.readFields(in);
 	}
-
-}
