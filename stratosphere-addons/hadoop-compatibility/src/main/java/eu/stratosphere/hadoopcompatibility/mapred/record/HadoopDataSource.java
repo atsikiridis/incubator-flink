@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.record;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 
 import org.apache.hadoop.mapred.InputFormat;
@@ -21,8 +21,9 @@ import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.java.record.operators.GenericDataSource;
 
-import eu.stratosphere.hadoopcompatibility.record.datatypes.DefaultHadoopTypeConverter;
-import eu.stratosphere.hadoopcompatibility.record.datatypes.HadoopTypeConverter;
+
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.DefaultHadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
 
 /**
  * The HadoopDataSource is a generic wrapper for all Hadoop InputFormats.

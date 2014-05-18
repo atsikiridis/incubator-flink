@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.record;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -24,10 +24,10 @@ import org.apache.hadoop.util.ReflectionUtils;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.hadoopcompatibility.record.datatypes.HadoopTypeConverter;
-import eu.stratosphere.hadoopcompatibility.utils.HadoopConfiguration;
-import eu.stratosphere.hadoopcompatibility.wrapper.HadoopDummyReporter;
-import eu.stratosphere.hadoopcompatibility.wrapper.HadoopInputSplit;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopConfiguration;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopInputSplit;
 import eu.stratosphere.types.Record;
 
 public class HadoopRecordInputFormat<K, V> implements InputFormat<Record, HadoopInputSplit> {

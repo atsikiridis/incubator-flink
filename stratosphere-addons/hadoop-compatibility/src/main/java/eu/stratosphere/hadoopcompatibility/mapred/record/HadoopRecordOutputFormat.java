@@ -11,28 +11,28 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.hadoopcompatibility.utils.HadoopConfiguration;
-import eu.stratosphere.hadoopcompatibility.wrapper.HadoopDummyProgressable;
-import eu.stratosphere.hadoopcompatibility.wrapper.HadoopDummyReporter;
-import eu.stratosphere.hadoopcompatibility.wrapper.HadoopFileOutputCommitter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.StratosphereTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopConfiguration;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyProgressable;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopFileOutputCommitter;
+import eu.stratosphere.types.Record;
 
 
-public class HadoopOutputFormat<K extends Writable,V extends Writable> implements OutputFormat<Tuple2<K, V>> {
+public class HadoopRecordOutputFormat<K,V> implements OutputFormat<Record> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -44,12 +44,15 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 
 	public RecordWriter<K,V> recordWriter;
 
+	public StratosphereTypeConverter<K,V> converter;
+
 	public HadoopFileOutputCommitter fileOutputCommitterWrapper;
 
-	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K,V> hadoopFormat, JobConf job) {
+	public HadoopRecordOutputFormat(org.apache.hadoop.mapred.OutputFormat<K,V> hadoopFormat, JobConf job, StratosphereTypeConverter<K,V> conv) {
 		super();
 		this.hadoopOutputFormat = hadoopFormat;
 		this.hadoopOutputFormatName = hadoopFormat.getClass().getName();
+		this.converter = conv;
 		this.fileOutputCommitterWrapper = new HadoopFileOutputCommitter();
 		HadoopConfiguration.mergeHadoopConf(job);
 		this.jobConf = job;
@@ -80,8 +83,10 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 
 
 	@Override
-	public void writeRecord(Tuple2<K, V> record) throws IOException {
-		this.recordWriter.write(record.f0, record.f1);
+	public void writeRecord(Record record) throws IOException {
+		K key = this.converter.convertKey(record);
+		V value = this.converter.convertValue(record);
+		this.recordWriter.write(key, value);
 	}
 
 	/**
@@ -105,6 +110,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.writeUTF(hadoopOutputFormatName);
 		jobConf.write(out);
+		out.writeObject(converter);
 		out.writeObject(fileOutputCommitterWrapper);
 	}
 
@@ -121,6 +127,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 			throw new RuntimeException("Unable to instantiate the hadoop output format", e);
 		}
 		ReflectionUtils.setConf(hadoopOutputFormat, jobConf);
+		converter = (StratosphereTypeConverter<K,V>) in.readObject();
 		fileOutputCommitterWrapper = (HadoopFileOutputCommitter) in.readObject();
 	}
 
