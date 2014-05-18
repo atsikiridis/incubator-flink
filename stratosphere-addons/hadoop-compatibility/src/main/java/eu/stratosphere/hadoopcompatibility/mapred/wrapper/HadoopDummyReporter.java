@@ -11,26 +11,55 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.record.datatypes;
+package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
-import java.io.Serializable;
-
-import eu.stratosphere.types.Record;
-
+import org.apache.hadoop.mapred.Counters.Counter;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.Reporter;
 
 /**
- * An interface describing a class that is able to 
- * convert Hadoop types into Stratosphere's Record model.
- * 
- * The converter must be Serializable.
- * 
- * Stratosphere provides a DefaultHadoopTypeConverter. Custom implementations should
- * chain the type converters.
+ * This is a dummy progress monitor / reporter
+ *
  */
-public interface HadoopTypeConverter<K, V> extends Serializable {
-	
-	/**
-	 * Convert a Hadoop type to a Stratosphere type.
-	 */
-	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue);
+public class HadoopDummyReporter implements Reporter {
+
+	@Override
+	public void progress() {
+	}
+
+	@Override
+	public void setStatus(String status) {
+
+	}
+
+	@Override
+	public Counter getCounter(Enum<?> name) {
+		return null;
+	}
+
+	@Override
+	public Counter getCounter(String group, String name) {
+		return null;
+	}
+
+	@Override
+	public void incrCounter(Enum<?> key, long amount) {
+
+	}
+
+	@Override
+	public void incrCounter(String group, String counter, long amount) {
+
+	}
+
+	@Override
+	public InputSplit getInputSplit() throws UnsupportedOperationException {
+		return null;
+	}
+
+	@Override
+	public float getProgress() {
+		return 0;
+	}
+
 }
