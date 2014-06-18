@@ -13,10 +13,8 @@
 
 package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
-import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.InputSplit;
-import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.Reporter;
 
 /**

@@ -218,7 +218,7 @@ public class StratosphereHadoopJobClient  extends JobClient {
 		@Override
 		public void waitForCompletion() throws IOException {
 			try {
-				this.executionEnvironment.execute(jobName);
+				environment.execute(jobName);
 			}
 			catch (Exception e) {
 				throw new IOException("An error has occurred.", e);

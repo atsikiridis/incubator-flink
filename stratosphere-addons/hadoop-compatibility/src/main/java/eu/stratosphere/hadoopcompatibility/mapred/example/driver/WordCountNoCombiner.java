@@ -52,7 +52,7 @@ public class WordCountNoCombiner {
 		conf.setOutputValueClass(LongWritable.class);
 		
 		//The only line of Stratoshere code!
-		StratosphereHadoopJobClient.runJob(conf).waitForCompletion();
+		StratosphereHadoopJobClient.runJob(conf);
 	}
 
 

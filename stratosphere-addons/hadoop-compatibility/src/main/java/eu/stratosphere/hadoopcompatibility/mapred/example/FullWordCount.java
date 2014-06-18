@@ -15,7 +15,6 @@ package eu.stratosphere.hadoopcompatibility.mapred.example;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopMapFunction;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopReduceFunction;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopKeySelector;
