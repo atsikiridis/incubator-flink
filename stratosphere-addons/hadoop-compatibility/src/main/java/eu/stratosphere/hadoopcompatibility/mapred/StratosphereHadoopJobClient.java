@@ -15,11 +15,17 @@ package eu.stratosphere.hadoopcompatibility.mapred;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.io.TextInputFormat;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
+import eu.stratosphere.api.java.typeutils.runtime.WritableComparator;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.WritableIdentityGroupReduce;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopReporter;
+import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -28,6 +34,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.Partitioner;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.RunningJob;
@@ -35,6 +42,8 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
 
 import java.io.IOException;
+import java.util.Iterator;
+
 /**
  * The user's view of Hadoop Job executed on a Stratosphere cluster.
  */
@@ -82,7 +91,12 @@ public class StratosphereHadoopJobClient  extends JobClient {
 		final DataSet mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass, mapOutputValueClass));
 
 		//Partitioning  TODO Custom partitioning
-		final UnsortedGrouping grouping = mapped.groupBy(0);
+		Partitioner partitioner = InstantiationUtil.instantiate(hadoopJobConf.getPartitionerClass());
+		final UnsortedGrouping partitions = mapped.groupBy(new HadoopPartitioner(partitioner, hadoopJobConf.getNumReduceTasks()));
+
+		ReduceGroupOperator identity = partitions.reduceGroup(new WritableIdentityGroupReduce());
+
+		UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(org.apache.hadoop.io.WritableComparator.get(Text.class)));
 
 		//Is a combiner specified in the jobConf?
 		final Class<? extends Reducer> combinerClass = hadoopJobConf.getCombinerClass();
