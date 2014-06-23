@@ -13,12 +13,14 @@
 package eu.stratosphere.hadoopcompatibility.mapred.example;
 
 import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
+import eu.stratosphere.hadoopcompatibility.mapred.HadoopGrouper;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopMapFunction;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopReduceFunction;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopKeySelector;
-import eu.stratosphere.hadoopcompatibility.mapred.HadoopReduceGrouping;
+import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -40,6 +42,7 @@ import org.apache.hadoop.mapred.lib.LongSumReducer;
 import org.apache.hadoop.mapred.lib.TokenCountMapper;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 /**
  * Implements a Hadoop wordcount on Stratosphere with all business logic code in Hadoop.
@@ -85,9 +88,16 @@ public class FullWordCount {
 				groupBy(new HadoopKeySelector<Text, LongWritable>(new HashPartitioner(), hadoopJobConf.getNumReduceTasks()));
 
 
-		ReduceGroupOperator<Tuple2<Tuple2<Text,LongWritable>, Tuple2<Text,LongWritable>>, Tuple2<Text, LongWritable>> set = grouping.sortGroup(0, Order.ASCENDING).
-				reduceGroup(new HadoopReduceGrouping(hadoopJobConf.getOutputValueGroupingComparator(),new HadoopReduceFunction<Text, LongWritable, Text, LongWritable>(reducer, Text.class,
-						LongWritable.class), Text.class, LongWritable.class));
+		ReduceGroupOperator<Tuple2<Tuple2<Text,LongWritable>, Tuple2<Text,LongWritable>>, Tuple2<Text, LongWritable>> set = grouping.reduceGroup(new GroupReduceFunction<Tuple2<Text, LongWritable>, Tuple2<Text, LongWritable>>() {
+			@Override
+			public void reduce(final Iterator<Tuple2<Text, LongWritable>> values, final Collector<Tuple2<Text, LongWritable>> out) throws Exception {
+				while (values.hasNext()) {
+					out.collect(values.next());
+				}
+			}
+		}).groupBy(new HadoopGrouper(hadoopJobConf.getOutputValueGroupingComparator())).
+				reduceGroup(new HadoopReduceFunction<Text, LongWritable, Text, LongWritable>(reducer, Text.class,
+						LongWritable.class));
 		//.
 			//	ReduceGroupOperator<Tuple2<Text, LongWritable>, Tuple2<Text, LongWritable>> reduceOperator =set.groupBy(0).reduceGroup(new HadoopReduceFunction<Text, LongWritable, Text, LongWritable>(reducer, Text.class,
 			//			LongWritable.class));
