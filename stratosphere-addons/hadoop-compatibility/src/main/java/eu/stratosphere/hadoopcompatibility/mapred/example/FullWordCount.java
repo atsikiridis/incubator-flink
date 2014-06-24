@@ -14,17 +14,22 @@ package eu.stratosphere.hadoopcompatibility.mapred.example;
 
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.functions.KeySelector;
+import eu.stratosphere.api.java.operators.Grouping;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
+import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopGrouper;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopMapFunction;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopReduceFunction;
-import eu.stratosphere.hadoopcompatibility.mapred.HadoopKeySelector;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.hadoopcompatibility.mapred.HadoopPartitioner;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
 import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
@@ -42,7 +47,6 @@ import org.apache.hadoop.mapred.lib.LongSumReducer;
 import org.apache.hadoop.mapred.lib.TokenCountMapper;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 /**
  * Implements a Hadoop wordcount on Stratosphere with all business logic code in Hadoop.
@@ -76,35 +80,30 @@ public class FullWordCount {
 		//Set the mapper implementation to be used.
 		final TestTokenizeMap<LongWritable> mapper = InstantiationUtil.instantiate(TestTokenizeMap.class,
 				Mapper.class);
-
 		final DataSet<Tuple2<Text, LongWritable>> words = text.flatMap( new HadoopMapFunction<LongWritable,Text,
 				Text, LongWritable>(mapper, Text.class, LongWritable.class));
 
+		// Partitioning with the HashPartitioner.
+		final int noOfPartitions =  hadoopJobConf.getNumReduceTasks();
+		final UnsortedGrouping<Tuple2<Text, LongWritable>> partitioning = words.
+				groupBy(new HadoopPartitioner<Text, LongWritable>(new HashPartitioner(),noOfPartitions));
+
+		//An Identity reducer between a second groupBy operation, which represent the grouping of values for reducers.
+		final GroupReduceFunction<Tuple2<Text, LongWritable>, Tuple2<Text, LongWritable>> identityRedFunction = new HadoopIdentityReduce<Text, LongWritable>();
+		final ReduceGroupOperator<Tuple2<Text, LongWritable>, Tuple2<Text,LongWritable>> identityReduce = partitioning.reduceGroup(identityRedFunction);
+
+		//Grouping values using Hadoop's GroupingComparator.
+		final RawComparator<Text> hadoopComparator = WritableComparator.get(Text.class);
+		final HadoopGrouper<Text,LongWritable> comparator = new HadoopGrouper<Text,LongWritable>(hadoopComparator,
+				Text.class);
+		final SortedGrouping<Tuple2<Text,LongWritable>> identityResult = identityReduce.groupBy((KeySelector) comparator).sortGroup(0, Order.ASCENDING);;
+
 		//Specifying the reducer.
-
-		final Reducer<Text,LongWritable, Text,LongWritable> reducer = InstantiationUtil.instantiate(LongSumReducer.class,
+		final Reducer<Text,LongWritable,Text,LongWritable> reducer = InstantiationUtil.instantiate(LongSumReducer.class,
 				Reducer.class);
-		final UnsortedGrouping<Tuple2<Text, LongWritable>> grouping = words.
-				groupBy(new HadoopKeySelector<Text, LongWritable>(new HashPartitioner(), hadoopJobConf.getNumReduceTasks()));
-
-
-		ReduceGroupOperator<Tuple2<Tuple2<Text,LongWritable>, Tuple2<Text,LongWritable>>, Tuple2<Text, LongWritable>> set = grouping.reduceGroup(new GroupReduceFunction<Tuple2<Text, LongWritable>, Tuple2<Text, LongWritable>>() {
-			@Override
-			public void reduce(final Iterator<Tuple2<Text, LongWritable>> values, final Collector<Tuple2<Text, LongWritable>> out) throws Exception {
-				while (values.hasNext()) {
-					out.collect(values.next());
-				}
-			}
-		}).groupBy(new HadoopGrouper(hadoopJobConf.getOutputValueGroupingComparator())).
+		final ReduceGroupOperator<Tuple2<Text,LongWritable>,Tuple2<Text,LongWritable>> set = identityResult.
 				reduceGroup(new HadoopReduceFunction<Text, LongWritable, Text, LongWritable>(reducer, Text.class,
 						LongWritable.class));
-		//.
-			//	ReduceGroupOperator<Tuple2<Text, LongWritable>, Tuple2<Text, LongWritable>> reduceOperator =set.groupBy(0).reduceGroup(new HadoopReduceFunction<Text, LongWritable, Text, LongWritable>(reducer, Text.class,
-			//			LongWritable.class));
-
-
-				//The reducer will be called
-				//reduceOperator.setCombinable(true);
 
 		//And the OutputFormat
 		final TextOutputFormat<Text, LongWritable> outputFormat = new TextOutputFormat<Text, LongWritable>();
@@ -115,7 +114,7 @@ public class FullWordCount {
 
 		// Output & Execute
 		set.output(hadoopOutputFormat);
-		env.execute("FullWordCount");
+		env.execute("Full WordCount");
 	}
 
 	public static class TestTokenizeMap<K> extends TokenCountMapper<K> {
@@ -126,7 +125,4 @@ public class FullWordCount {
 			super.map(key, strippedValue, output, reporter);
 		}
 	}
-
-
-
 }

@@ -29,8 +29,8 @@ public class HadoopFullJobITCase extends JavaProgramTestBase {
 		ArrayList<String> list = new ArrayList<String>();
 		readAllResultLines(list, resultPath, false);
 
-		String[] result = (String[]) list.toArray(new String[list.size()]);
-		Arrays.sort(result);
+		String[] result = list.toArray(new String[list.size()]);
+		//Arrays.sort(result);
 
 		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
 		Arrays.sort(expected);

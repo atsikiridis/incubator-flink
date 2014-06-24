@@ -13,19 +13,20 @@
 
 package eu.stratosphere.hadoopcompatibility.mapred;
 
+import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.GroupReduceFunction;
-import eu.stratosphere.api.java.io.TextInputFormat;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
+import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
-import eu.stratosphere.api.java.typeutils.runtime.WritableComparator;
-import eu.stratosphere.hadoopcompatibility.mapred.utils.WritableIdentityGroupReduce;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopReporter;
-import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -42,7 +43,6 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 /**
  * The user's view of Hadoop Job executed on a Stratosphere cluster.
@@ -79,6 +79,7 @@ public class StratosphereHadoopJobClient  extends JobClient {
 	 * Submits a job to Stratosphere and returns a RunningJob instance which can be scheduled and monitored
 	 * without blocking by default. Use waitForCompletion() to block until the job is finished.
 	 */
+	@Override
 	@SuppressWarnings("unchecked")
 	public RunningJob submitJob(JobConf hadoopJobConf) throws IOException{
 
@@ -90,13 +91,19 @@ public class StratosphereHadoopJobClient  extends JobClient {
 		final Class mapOutputValueClass = hadoopJobConf.getMapOutputValueClass();
 		final DataSet mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass, mapOutputValueClass));
 
-		//Partitioning  TODO Custom partitioning
-		Partitioner partitioner = InstantiationUtil.instantiate(hadoopJobConf.getPartitionerClass());
-		final UnsortedGrouping partitions = mapped.groupBy(new HadoopPartitioner(partitioner, hadoopJobConf.getNumReduceTasks()));
+		//Partitioning
+		final Partitioner partitioner = InstantiationUtil.instantiate(hadoopJobConf.getPartitionerClass());
+		final int noOfReduceTasks = hadoopJobConf.getNumReduceTasks();
+		final UnsortedGrouping partitions = mapped.groupBy(new HadoopPartitioner(partitioner, noOfReduceTasks));
 
-		ReduceGroupOperator identity = partitions.reduceGroup(new WritableIdentityGroupReduce());
+		final ReduceGroupOperator identity = partitions.reduceGroup(new HadoopIdentityReduce()); //In order to regroup.
 
-		UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(org.apache.hadoop.io.WritableComparator.get(Text.class)));
+		//Grouping
+		final RawComparator comparator = hadoopJobConf.getOutputValueGroupingComparator();
+		final UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(comparator, mapOutputKeyClass));
+
+		//Sorting. TODO Custom sorting should be implemented.
+		final SortedGrouping sortedGrouping = grouping.sortGroup(0, Order.ASCENDING);
 
 		//Is a combiner specified in the jobConf?
 		final Class<? extends Reducer> combinerClass = hadoopJobConf.getCombinerClass();
@@ -111,12 +118,13 @@ public class StratosphereHadoopJobClient  extends JobClient {
 
 		final ReduceGroupOperator reduceOp;
 		if (combinerClass != null && combinerClass.equals(reducerClass)) {
-			reduceOp = grouping.reduceGroup(new HadoopReduceFunction(reducer, mapOutputKeyClass, mapOutputValueClass));
+			reduceOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(reducer, mapOutputKeyClass,
+					mapOutputValueClass));
 			reduceOp.setCombinable(true);  //The combiner is the same class as the reducer.
 		}
 		else if(combinerClass != null) {  //We have a different combiner.
 			final Reducer combiner = InstantiationUtil.instantiate(combinerClass);
-			final ReduceGroupOperator combineOp = grouping.reduceGroup(new HadoopReduceFunction(combiner,
+			final ReduceGroupOperator combineOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(combiner,
 					mapOutputKeyClass, mapOutputValueClass));
 			combineOp.setCombinable(true);
 			final HadoopReduceFunction reduceFunction = new HadoopReduceFunction(reducer, outputKeyClass,
@@ -124,16 +132,15 @@ public class StratosphereHadoopJobClient  extends JobClient {
 			reduceOp = combineOp.groupBy(0).reduceGroup(reduceFunction);
 		}
 		else { // No combiner.
-			reduceOp = grouping.reduceGroup(new HadoopReduceFunction(reducer, outputKeyClass, outputValueClass));
+			reduceOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(reducer, outputKeyClass, outputValueClass));
 		}
 
 		//Wrapping the output format.
 		final HadoopOutputFormat outputFormat = new HadoopOutputFormat(hadoopJobConf.getOutputFormat() ,hadoopJobConf);
 		reduceOp.output(outputFormat);
 
-		return new DummyStratosphereRunningJob(environment, hadoopJobConf.getJobName());
+		return new DummyStratosphereRunningJob(hadoopJobConf.getJobName());
 	}
-
 
 	@SuppressWarnings("unchecked")
 	private HadoopInputFormat getStratosphereInputFormat(JobConf jobConf) throws IOException{
@@ -142,9 +149,6 @@ public class StratosphereHadoopJobClient  extends JobClient {
 		return new HadoopInputFormat(inputFormat, inputFormatClasses[0], inputFormatClasses[1], jobConf);
 	}
 
-	/**
-	 * Better... Still not always.
-	 */
 	private Class[] getInputFormatClasses(InputFormat inputFormat, JobConf jobConf) throws IOException{
 		final Class[] inputFormatClasses = new Class[2];
 		final InputSplit firstSplit = inputFormat.getSplits(jobConf, 0)[0];
@@ -166,11 +170,9 @@ public class StratosphereHadoopJobClient  extends JobClient {
 
 	private class DummyStratosphereRunningJob implements RunningJob {
 
-		private final ExecutionEnvironment executionEnvironment;
 		private final String jobName;
 
-		public DummyStratosphereRunningJob(ExecutionEnvironment executionEnvironment, String jobName) {
-			this.executionEnvironment = executionEnvironment;
+		public DummyStratosphereRunningJob( String jobName) {
 			this.jobName = jobName;
 		}
 

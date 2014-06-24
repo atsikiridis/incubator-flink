@@ -15,6 +15,7 @@ package eu.stratosphere.hadoopcompatibility.mapred;
 
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -29,22 +30,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class HadoopGrouper<K extends WritableComparable,V extends Writable> extends KeySelector<Tuple2<K,V>, K> {
+public class HadoopGrouper<K extends Writable,V extends Writable> extends KeySelector<Tuple2<K,V>, K> {
 
 	private RawComparator<K> comparator;
 	private JobConf jobConf;
 	private List<K> keysToCompareWith;
+	private Class<K> keyClass;
 
-	public HadoopGrouper(RawComparator<K> comparator) {
+	public HadoopGrouper(RawComparator<K> comparator, Class<K> keyClass) {
 		this.comparator = comparator;
 		this.jobConf = new JobConf();
 		this.keysToCompareWith = new ArrayList<K>();
+		this.keyClass = keyClass;
 	}
 
 	@Override
 	public K getKey(final Tuple2<K, V> value) {
 		final K currentKey = value.f0;
-		for(K key: keysToCompareWith) {
+		for(final K key: keysToCompareWith) {
 			final int result = comparator.compare(key, currentKey);
 			if (result == 0) {
 				return key;
@@ -55,21 +58,29 @@ public class HadoopGrouper<K extends WritableComparable,V extends Writable> exte
 	}
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
-		//jobConf.setOutputValueGroupingComparator(org.apache.hadoop.io.WritableComparator.);
+		jobConf.setOutputValueGroupingComparator(this.comparator.getClass());
 		jobConf.write(out);
-		out.writeObject(keysToCompareWith);
+		out.writeObject(this.keyClass);
+		out.writeObject(this.keysToCompareWith);
 	}
 
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		jobConf = new JobConf();
-		jobConf.readFields(in);
+		this.jobConf = new JobConf();
+		this.jobConf.readFields(in);
+		this.keyClass = (Class<K>) in.readObject();
 		try {
+			if (InstantiationUtil.instantiate(this.keyClass) instanceof WritableComparable) {
+				this.comparator = WritableComparator.get(this.keyClass.asSubclass(WritableComparable.class));
+			}
+			else {
+				this.comparator = this.jobConf.getOutputValueGroupingComparator();
+			}
 			this.comparator = WritableComparator.get(Text.class);
 		}catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop grouping comparator", e);
 		}
-		ReflectionUtils.setConf(comparator, jobConf);
-		keysToCompareWith = (List<K>) in.readObject();
+		ReflectionUtils.setConf(this.comparator, this.jobConf);
+		this.keysToCompareWith = (List<K>) in.readObject();
 	}
 }

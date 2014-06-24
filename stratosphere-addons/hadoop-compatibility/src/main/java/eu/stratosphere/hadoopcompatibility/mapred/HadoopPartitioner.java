@@ -27,11 +27,11 @@ import java.io.ObjectOutputStream;
 
 public class HadoopPartitioner<K2 extends Writable,V2 extends Writable> extends KeySelector<Tuple2<K2,V2>, Integer>  {
 
-	private Partitioner partitioner;
+	private Partitioner<K2,V2> partitioner;
 	private int noOfReduceTasks;
 	private JobConf jobConf;
 
-	public HadoopPartitioner(Partitioner partitioner, int noOfReduceTasks) {
+	public HadoopPartitioner(Partitioner<K2, V2> partitioner, int noOfReduceTasks) {
 		this.partitioner = partitioner;
 		this.noOfReduceTasks = noOfReduceTasks;
 		this.jobConf = new JobConf();
