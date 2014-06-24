@@ -13,10 +13,9 @@
 
 package eu.stratosphere.test.hadoopcompatibility.mapred.driver;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.driver.WordCountSameCombiner;
+import eu.stratosphere.hadoopcompatibility.mapred.example.driver.HadoopWordCountVariations;
 import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 public class HadoopDriverSameCombinerITCase extends HadoopTestBase {
 
@@ -30,8 +29,6 @@ public class HadoopDriverSameCombinerITCase extends HadoopTestBase {
 		resultPath = getTempDirPath("result");
 	}
 
-
-
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
@@ -39,7 +36,7 @@ public class HadoopDriverSameCombinerITCase extends HadoopTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCountSameCombiner.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.WordCountSameCombiner.main(new String[]{textPath, resultPath});
 	}
 }
 

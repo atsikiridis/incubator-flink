@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.hadoopcompatibility.mapred.driver;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.driver.WordCountDifferentCombiner;
+import eu.stratosphere.hadoopcompatibility.mapred.example.driver.HadoopWordCountVariations;
 import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
 
@@ -35,7 +35,7 @@ public class HadoopDriverDifferentCombinerITCase extends HadoopTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCountDifferentCombiner.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.WordCountDifferentCombiner.main(new String[]{textPath, resultPath});
 	}
 }
 

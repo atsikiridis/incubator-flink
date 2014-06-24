@@ -13,10 +13,9 @@
 
 package eu.stratosphere.test.hadoopcompatibility.mapred.driver;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.driver.WordCountNoCombiner;
+import eu.stratosphere.hadoopcompatibility.mapred.example.driver.HadoopWordCountVariations;
 import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 public class HadoopDriverNoCombinerITCase extends HadoopTestBase {
 
@@ -37,7 +36,8 @@ public class HadoopDriverNoCombinerITCase extends HadoopTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCountNoCombiner.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.WordCountNoCombiner.main(new String[]{textPath, resultPath});
 	}
 }
+
 

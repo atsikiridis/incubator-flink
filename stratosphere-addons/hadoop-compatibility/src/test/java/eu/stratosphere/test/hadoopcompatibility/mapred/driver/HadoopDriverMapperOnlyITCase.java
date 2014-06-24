@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.hadoopcompatibility.mapred.driver;
 
-import eu.stratosphere.hadoopcompatibility.mapred.example.driver.StringTokenizer;
+import eu.stratosphere.hadoopcompatibility.mapred.example.driver.HadoopWordCountVariations;
 import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
 import org.apache.commons.lang3.StringUtils;
@@ -70,7 +70,7 @@ public class HadoopDriverMapperOnlyITCase extends HadoopTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		StringTokenizer.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.StringTokenizer.main(new String[]{textPath, resultPath});
 	}
 }
 
