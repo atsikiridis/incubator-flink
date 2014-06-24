@@ -15,14 +15,13 @@ package eu.stratosphere.hadoopcompatibility.mapred.example;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
-import eu.stratosphere.api.java.operators.Grouping;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
-import eu.stratosphere.hadoopcompatibility.mapred.HadoopGrouper;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopGrouper;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopMapFunction;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopReduceFunction;
-import eu.stratosphere.hadoopcompatibility.mapred.HadoopPartitioner;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopPartitioner;
 import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
 import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.fs.Path;
@@ -86,7 +85,7 @@ public class FullWordCount {
 		// Partitioning with the HashPartitioner.
 		final int noOfPartitions =  hadoopJobConf.getNumReduceTasks();
 		final UnsortedGrouping<Tuple2<Text, LongWritable>> partitioning = words.
-				groupBy(new HadoopPartitioner<Text, LongWritable>(new HashPartitioner(),noOfPartitions));
+				groupBy(new HadoopPartitioner<Text, LongWritable>(new HashPartitioner(), noOfPartitions));
 
 		//An Identity reducer between a second groupBy operation, which represent the grouping of values for reducers.
 		final GroupReduceFunction<Tuple2<Text, LongWritable>, Tuple2<Text, LongWritable>> identityRedFunction = new HadoopIdentityReduce<Text, LongWritable>();

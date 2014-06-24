@@ -46,15 +46,12 @@ public class StringTokenizer {
 		TextOutputFormat.setOutputPath(conf, new Path(outputPath));
 
 		conf.setMapperClass(TestTokenizeMap.class);
-		//conf.setCombinerClass((LongSumReducer.class));
-		//conf.setReducerClass(TestReducer.class);
 
 
 		conf.set("mapred.textoutputformat.separator", " ");
 		conf.setOutputKeyClass(Text.class);
 		conf.setOutputValueClass(LongWritable.class);
 		
-		//The only line of Stratoshere code!
 		StratosphereHadoopJobClient.runJob(conf);
 	}
 

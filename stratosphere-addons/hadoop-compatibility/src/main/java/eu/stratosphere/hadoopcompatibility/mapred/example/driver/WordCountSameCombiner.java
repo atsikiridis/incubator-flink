@@ -52,7 +52,6 @@ public class WordCountSameCombiner {
 		conf.setOutputKeyClass(Text.class);
 		conf.setOutputValueClass(LongWritable.class);
 
-		//The only line of Stratoshere code!
 		StratosphereHadoopJobClient.runJob(conf);
 	}
 

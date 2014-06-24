@@ -14,10 +14,11 @@
 package eu.stratosphere.test.hadoopcompatibility.mapred.driver;
 
 import eu.stratosphere.hadoopcompatibility.mapred.example.driver.WordCountSameCombiner;
+import eu.stratosphere.test.hadoopcompatibility.HadoopTestBase;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 
-public class HadoopDriverSameCombinerITCase extends JavaProgramTestBase {
+public class HadoopDriverSameCombinerITCase extends HadoopTestBase {
 
 	protected String textPath;
 	protected String resultPath;

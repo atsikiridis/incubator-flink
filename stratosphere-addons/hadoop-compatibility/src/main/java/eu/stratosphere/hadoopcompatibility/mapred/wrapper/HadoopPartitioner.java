@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.mapred;
+package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.tuple.Tuple2;
@@ -24,6 +24,11 @@ import org.apache.hadoop.util.ReflectionUtils;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+
+/**
+ * The wrapper of Hadoop's Partitioner interface.
+ */
+
 
 public class HadoopPartitioner<K2 extends Writable,V2 extends Writable> extends KeySelector<Tuple2<K2,V2>, Integer>  {
 

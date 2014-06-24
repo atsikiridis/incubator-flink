@@ -20,13 +20,12 @@ import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
 import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopGrouper;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopPartitioner;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopReporter;
 import eu.stratosphere.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -45,12 +44,11 @@ import org.apache.hadoop.mapred.TaskCompletionEvent;
 import java.io.IOException;
 
 /**
- * The user's view of Hadoop Job executed on a Stratosphere cluster.
+ * The user's view of a Hadoop Job executed on a Stratosphere cluster.
  */
-public class StratosphereHadoopJobClient  extends JobClient {
+public class StratosphereHadoopJobClient extends JobClient {
 
 	private final ExecutionEnvironment environment;
-
 	private Configuration hadoopConf;
 
 

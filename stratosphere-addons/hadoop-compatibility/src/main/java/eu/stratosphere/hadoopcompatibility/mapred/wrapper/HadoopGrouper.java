@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.mapred;
+package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.tuple.Tuple2;
@@ -21,6 +21,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.ReflectionUtils;
 import java.io.IOException;
@@ -29,7 +30,9 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * A custom KeySelector for the grouping of values before each reduce() call.
+ */
 public class HadoopGrouper<K extends Writable,V extends Writable> extends KeySelector<Tuple2<K,V>, K> {
 
 	private RawComparator<K> comparator;
@@ -47,13 +50,15 @@ public class HadoopGrouper<K extends Writable,V extends Writable> extends KeySel
 	@Override
 	public K getKey(final Tuple2<K, V> value) {
 		final K currentKey = value.f0;
+
 		for(final K key: keysToCompareWith) {
 			final int result = comparator.compare(key, currentKey);
 			if (result == 0) {
 				return key;
 			}
 		}
-		keysToCompareWith.add(currentKey);
+
+		keysToCompareWith.add(WritableUtils.clone(currentKey, jobConf));
 		return currentKey;
 	}
 
@@ -70,15 +75,14 @@ public class HadoopGrouper<K extends Writable,V extends Writable> extends KeySel
 		this.jobConf.readFields(in);
 		this.keyClass = (Class<K>) in.readObject();
 		try {
+			this.comparator = this.jobConf.getOutputValueGroupingComparator();
+		}
+		catch (Exception e) {
 			if (InstantiationUtil.instantiate(this.keyClass) instanceof WritableComparable) {
 				this.comparator = WritableComparator.get(this.keyClass.asSubclass(WritableComparable.class));
+			} else {
+				throw new RuntimeException("Unable to instantiate the hadoop grouping comparator", e);
 			}
-			else {
-				this.comparator = this.jobConf.getOutputValueGroupingComparator();
-			}
-			this.comparator = WritableComparator.get(Text.class);
-		}catch (Exception e) {
-			throw new RuntimeException("Unable to instantiate the hadoop grouping comparator", e);
 		}
 		ReflectionUtils.setConf(this.comparator, this.jobConf);
 		this.keysToCompareWith = (List<K>) in.readObject();
