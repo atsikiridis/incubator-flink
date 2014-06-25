@@ -95,7 +95,7 @@ public class FullWordCount {
 		final RawComparator<Text> hadoopComparator = WritableComparator.get(Text.class);
 		final HadoopGrouper<Text,LongWritable> comparator = new HadoopGrouper<Text,LongWritable>(hadoopComparator,
 				Text.class);
-		final SortedGrouping<Tuple2<Text,LongWritable>> identityResult = identityReduce.groupBy((KeySelector) comparator).sortGroup(0, Order.ASCENDING);;
+		final SortedGrouping<Tuple2<Text,LongWritable>> identityResult = identityReduce.groupBy((KeySelector) comparator).sortGroup(0, Order.ASCENDING);
 
 		//Specifying the reducer.
 		final Reducer<Text,LongWritable,Text,LongWritable> reducer = InstantiationUtil.instantiate(LongSumReducer.class,
