@@ -288,5 +288,16 @@ public class StratosphereHadoopJobClient extends JobClient {
 		public String[] getTaskDiagnostics(final TaskAttemptID taskAttemptID) throws IOException {
 			return new String[0];
 		}
+
+		//Hadoop 2.2 methods.
+		public boolean isRetired() throws IOException { return false; }
+
+		public String getHistoryUrl() throws IOException { return null; }
+
+		public Configuration getConfiguration() { return getConf(); }
 	}
+
+
+
+
 }
