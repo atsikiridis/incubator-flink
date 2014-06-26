@@ -63,11 +63,11 @@ public class StratosphereHadoopJobClient extends JobClient {
 	}
 
 	/**
-	 * Submits a Hadoop job to Stratoshere (as described by the JobConf and returns after the job has been completed.
+	 * Submits a Hadoop job to Stratoshere (as described by the JobConf) and returns after the job has been completed.
 	 */
 	public static RunningJob runJob(JobConf hadoopJobConf) throws IOException{
 		final StratosphereHadoopJobClient jobClient = new StratosphereHadoopJobClient(hadoopJobConf);
-		RunningJob job = jobClient.submitJob(hadoopJobConf);
+		final RunningJob job = jobClient.submitJob(hadoopJobConf);
 		job.waitForCompletion();
 		return job;
 
@@ -296,8 +296,4 @@ public class StratosphereHadoopJobClient extends JobClient {
 
 		public Configuration getConfiguration() { return getConf(); }
 	}
-
-
-
-
 }
