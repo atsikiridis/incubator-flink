@@ -171,5 +171,4 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 		keyoutClass = (Class<KEYOUT>) in.readObject();
 		valueoutClass = (Class<VALUEOUT>) in.readObject();
 	}
-
 }

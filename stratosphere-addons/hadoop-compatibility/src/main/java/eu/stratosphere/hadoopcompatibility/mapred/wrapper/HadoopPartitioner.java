@@ -60,14 +60,9 @@ public class HadoopPartitioner<K2 extends Writable,V2 extends Writable> extends 
 		try {
 			this.partitioner = InstantiationUtil.instantiate(this.jobConf.getPartitionerClass());
 		} catch (Exception e) {
-			throw new RuntimeException("Unable to instantiate the hadoop mapper", e);
+			throw new RuntimeException("Unable to instantiate the hadoop partitioner", e);
 		}
 		ReflectionUtils.setConf(partitioner, jobConf);
 		this.noOfReduceTasks = (Integer) in.readObject();
 	}
-
-
-
-
-
 }
