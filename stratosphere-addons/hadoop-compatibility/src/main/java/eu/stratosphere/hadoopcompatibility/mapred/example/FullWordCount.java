@@ -31,9 +31,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 import eu.stratosphere.api.java.DataSet;
@@ -43,9 +41,6 @@ import eu.stratosphere.hadoopcompatibility.mapred.HadoopInputFormat;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopOutputFormat;
 import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapred.lib.LongSumReducer;
-import org.apache.hadoop.mapred.lib.TokenCountMapper;
-
-import java.io.IOException;
 
 /**
  * Implements a Hadoop wordcount on Stratosphere with all business logic code in Hadoop.
@@ -70,14 +65,14 @@ public class FullWordCount {
 
 		// Set up the Hadoop Input Format
 		final HadoopInputFormat<LongWritable, Text> hadoopInputFormat = new HadoopInputFormat<LongWritable,
-				Text>(new TextInputFormat(), LongWritable.class, Text.class, hadoopJobConf);
+				Text>(new TextInputFormat(),LongWritable.class, Text.class, hadoopJobConf);
 		TextInputFormat.addInputPath(hadoopInputFormat.getJobConf(), new Path(inputPath));
 
 		// Create a Stratosphere job with it
 		final DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 
 		//Set the mapper implementation to be used.
-		final TestTokenizeMap<LongWritable> mapper = InstantiationUtil.instantiate(TestTokenizeMap.class,
+		final Mapper mapper = InstantiationUtil.instantiate(HadoopWordCountVariations.TestTokenizeMap.class,
 				Mapper.class);
 		final DataSet<Tuple2<Text, LongWritable>> words = text.flatMap( new HadoopMapFunction<LongWritable,Text,
 				Text, LongWritable>(mapper, Text.class, LongWritable.class));
@@ -95,7 +90,8 @@ public class FullWordCount {
 		final RawComparator<Text> hadoopComparator = WritableComparator.get(Text.class);
 		final HadoopGrouper<Text,LongWritable> comparator = new HadoopGrouper<Text,LongWritable>(hadoopComparator,
 				Text.class);
-		final SortedGrouping<Tuple2<Text,LongWritable>> identityResult = identityReduce.groupBy((KeySelector) comparator).sortGroup(0, Order.ASCENDING);
+		final SortedGrouping<Tuple2<Text,LongWritable>> identityResult = identityReduce.groupBy((KeySelector) comparator)
+				.sortGroup(0, Order.ASCENDING);
 
 		//Specifying the reducer.
 		final Reducer<Text,LongWritable,Text,LongWritable> reducer = InstantiationUtil.instantiate(LongSumReducer.class,
@@ -114,14 +110,5 @@ public class FullWordCount {
 		// Output & Execute
 		set.output(hadoopOutputFormat);
 		env.execute("Full WordCount");
-	}
-
-	public static class TestTokenizeMap<K> extends TokenCountMapper<K> {
-		@Override
-		public void map(K key, Text value, OutputCollector<Text, LongWritable> output,
-						Reporter reporter) throws IOException{
-			final Text strippedValue = new Text(value.toString().toLowerCase().replaceAll("\\W+", " "));
-			super.map(key, strippedValue, output, reporter);
-		}
 	}
 }

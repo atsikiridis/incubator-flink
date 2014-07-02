@@ -29,6 +29,15 @@ public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT e
 		implements OutputCollector<KEYOUT,VALUEOUT> {
 
 	private Collector<Tuple2<KEYOUT,VALUEOUT>> collector;
+	private Class<KEYOUT> keyoutClass;
+	private Class<VALUEOUT> valueoutClass;
+
+	public HadoopOutputCollector(Class<KEYOUT> keyoutClass, Class<VALUEOUT> valueoutClass) {
+		this.keyoutClass = keyoutClass;
+		this.valueoutClass = valueoutClass;
+	}
+
+	public HadoopOutputCollector() {}  //Useful when instantiating by reflection.
 
 	public void set(Collector<Tuple2<KEYOUT,VALUEOUT>> collector) {
 		this.collector = collector;
@@ -36,6 +45,8 @@ public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT e
 
 	@Override
 	public void collect(KEYOUT keyout, VALUEOUT valueout) throws IOException {
+		validateExpectedTypes(keyout, valueout);
+
 		final Tuple2<KEYOUT,VALUEOUT> tuple = new Tuple2<KEYOUT, VALUEOUT>(keyout, valueout);
 		if (this.collector != null) {
 			this.collector.collect(tuple);
@@ -43,6 +54,36 @@ public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT e
 		else {
 			throw new RuntimeException("There is no Stratosphere Collector set to be wrapped by this" +
 					" HadoopOutputCollector object. The set method must be called in advance.");
+		}
+	}
+
+	/**
+	 * Method to set the expected key and value output classes. Must be used if instantiating by reflection
+	 * (e.g. custom serialization).
+	 */
+	public void setExpectedKeyValueClasses(Class<KEYOUT> keyClass, Class<VALUEOUT> valueClass) {
+		this.keyoutClass = keyClass;
+		this.valueoutClass = valueClass;
+	}
+
+	/**
+	 * Checking if types of current key and value are compatible with the expected ones.
+	 */
+	private void validateExpectedTypes(KEYOUT keyout, VALUEOUT valueout) throws IOException{
+		if (this.keyoutClass == null) {
+			throw new IOException("Expected output key class has not been specified.");
+		}
+		else if (! this.keyoutClass.isInstance(keyout)) {
+			final String kClassName = keyout.getClass().getCanonicalName();
+			throw new IOException("Type mismatch in key: expected " + this.keyoutClass + ", received " + kClassName);
+		}
+
+		if (this.valueoutClass == null) {
+			throw new IOException("Expected output value class has not been specified.");
+		}
+		else if (! this.valueoutClass.isInstance(valueout)) {
+			final String vClassName = valueout.getClass().getCanonicalName();
+			throw new IOException("Type mismatch in value: expected " + this.valueoutClass + ", received " + vClassName);
 		}
 	}
 }

@@ -59,7 +59,9 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 	public HadoopReduceFunction(Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> reducer,
 								Class<KEYOUT> keyoutClass,
 								Class<VALUEOUT> valueoutClass) {
-		this(reducer, keyoutClass, valueoutClass, new HadoopOutputCollector<KEYOUT,VALUEOUT>(), new HadoopDummyReporter());
+		this(reducer, keyoutClass, valueoutClass,
+				new HadoopOutputCollector<KEYOUT,VALUEOUT>(keyoutClass, valueoutClass),
+				new HadoopDummyReporter());
 	}
 
 	public HadoopReduceFunction(Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> reducer,
@@ -161,14 +163,16 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop reducer", e);
 		}
+		iterator = (ReducerTransformingIterator) in.readObject();
+		keyoutClass = (Class<KEYOUT>) in.readObject();
+		valueoutClass = (Class<VALUEOUT>) in.readObject();
 		ReflectionUtils.setConf(reducer, jobConf);
 		reducer = InstantiationUtil.instantiate(jobConf.getReducerClass());
 		outputCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(
 				HadoopConfiguration.getOutputCollectorFromConf(jobConf));
+		outputCollector.setExpectedKeyValueClasses(keyoutClass, valueoutClass);
 		reporter = InstantiationUtil.instantiate(
 				HadoopConfiguration.getReporterFromConf(jobConf));
-		iterator = (ReducerTransformingIterator) in.readObject();
-		keyoutClass = (Class<KEYOUT>) in.readObject();
-		valueoutClass = (Class<VALUEOUT>) in.readObject();
+
 	}
 }
