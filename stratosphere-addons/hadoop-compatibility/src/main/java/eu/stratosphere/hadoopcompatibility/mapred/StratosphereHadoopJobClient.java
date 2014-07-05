@@ -101,7 +101,6 @@ public class StratosphereHadoopJobClient extends JobClient {
 		final UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(comparator, mapOutputKeyClass));
 
 		//Sorting. TODO Custom sorting should be implemented.
-		final SortedGrouping sortedGrouping = grouping.sortGroup(0, Order.ASCENDING);
 
 		//Is a combiner specified in the jobConf?
 		final Class<? extends Reducer> combinerClass = hadoopJobConf.getCombinerClass();
@@ -116,13 +115,13 @@ public class StratosphereHadoopJobClient extends JobClient {
 
 		final ReduceGroupOperator reduceOp;
 		if (combinerClass != null && combinerClass.equals(reducerClass)) {
-			reduceOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(reducer, mapOutputKeyClass,
+			reduceOp = grouping.reduceGroup(new HadoopReduceFunction(reducer, mapOutputKeyClass,
 					mapOutputValueClass));
 			reduceOp.setCombinable(true);  //The combiner is the same class as the reducer.
 		}
 		else if(combinerClass != null) {  //We have a different combiner.
 			final Reducer combiner = InstantiationUtil.instantiate(combinerClass);
-			final ReduceGroupOperator combineOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(combiner,
+			final ReduceGroupOperator combineOp = grouping.reduceGroup(new HadoopReduceFunction(combiner,
 					mapOutputKeyClass, mapOutputValueClass));
 			combineOp.setCombinable(true);
 			final HadoopReduceFunction reduceFunction = new HadoopReduceFunction(reducer, outputKeyClass,
@@ -130,7 +129,7 @@ public class StratosphereHadoopJobClient extends JobClient {
 			reduceOp = combineOp.groupBy(0).reduceGroup(reduceFunction);
 		}
 		else { // No combiner.
-			reduceOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(reducer, outputKeyClass, outputValueClass));
+			reduceOp = grouping.reduceGroup(new HadoopReduceFunction(reducer, outputKeyClass, outputValueClass));
 		}
 
 		//Wrapping the output format.
