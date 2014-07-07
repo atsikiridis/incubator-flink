@@ -23,9 +23,12 @@ import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.typeutils.runtime.WritableComparator;
 import eu.stratosphere.api.java.typeutils.runtime.WritableSerializer;
 
+import java.util.Comparator;
+
 public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> implements AtomicType<T> {
 	
 	private final Class<T> typeClass;
+	private Comparator<T> hadoopComparator;  //TODO Can we have an RawComparator?
 	
 	public WritableTypeInfo(Class<T> typeClass) {
 		if (typeClass == null) {
@@ -40,6 +43,9 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
+		if (this.hadoopComparator != null) {
+			return new WritableComparator(hadoopComparator, typeClass);
+		}
 		if(Comparable.class.isAssignableFrom(typeClass)) {
 			return new WritableComparator(sortOrderAscending, typeClass);
 		}
@@ -47,6 +53,13 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 			throw new UnsupportedOperationException("Cannot create Comparator for "+typeClass.getCanonicalName()+". " +
 													"Class does not implement Comparable interface.");
 		}
+	}
+
+	/**
+	 * Use a custom Hadoop Comparator. If not specified, the object should implement Comparable.
+	 */
+	public void setCustomHadoopComparator(Comparator<T> hadoopComparator) {
+		this.hadoopComparator = hadoopComparator;
 	}
 
 	@Override

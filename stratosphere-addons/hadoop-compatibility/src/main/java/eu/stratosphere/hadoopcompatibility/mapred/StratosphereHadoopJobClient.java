@@ -86,8 +86,10 @@ public class StratosphereHadoopJobClient extends JobClient {
 
 		final Mapper mapper = InstantiationUtil.instantiate(hadoopJobConf.getMapperClass());
 		final Class mapOutputKeyClass = hadoopJobConf.getMapOutputKeyClass();
-		final Class mapOutputValueClass = hadoopJobConf.getMapOutputValueClass();
-		final DataSet mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass, mapOutputValueClass));
+		final Class mapOutputValueClass = hadoopJobConf.getMapOutputValueClass();   //Handle . exception test case.
+		final RawComparator keyComparator = hadoopJobConf.getOutputKeyComparator();
+		final DataSet mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass, mapOutputValueClass,
+				keyComparator));
 
 		//Partitioning
 		final Partitioner partitioner = InstantiationUtil.instantiate(hadoopJobConf.getPartitionerClass());
@@ -99,8 +101,6 @@ public class StratosphereHadoopJobClient extends JobClient {
 		//Grouping
 		final RawComparator comparator = hadoopJobConf.getOutputValueGroupingComparator();
 		final UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(comparator, mapOutputKeyClass));
-
-		//Sorting. TODO Custom sorting should be implemented.
 
 		//Is a combiner specified in the jobConf?
 		final Class<? extends Reducer> combinerClass = hadoopJobConf.getCombinerClass();

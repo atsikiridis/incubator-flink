@@ -15,6 +15,7 @@
 package eu.stratosphere.api.java.typeutils.runtime;
 
 import java.io.IOException;
+import java.util.Comparator;
 
 import org.apache.hadoop.io.Writable;
 
@@ -27,23 +28,34 @@ import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.types.NormalizableKey;
 import eu.stratosphere.util.InstantiationUtil;
 
-public class WritableComparator<T extends Writable & Comparable<T>> extends TypeComparator<T> {
+public class WritableComparator<T extends Writable> extends TypeComparator<T> {
 	
 	private static final long serialVersionUID = 1L;
 	
 	private Class<T> type;
 	
-	private final boolean ascendingComparison;
+	private boolean ascendingComparison;
+
+	private Comparator<T> hadoopComparator;
 	
 	private transient T reference;
 	
 	private transient T tempReference;
 	
 	private transient Kryo kryo;
+
+	public WritableComparator(Comparator<T> hadoopComparator, Class<T> type) {
+		this(type);
+		this.hadoopComparator = hadoopComparator;
+	}
 	
 	public WritableComparator(boolean ascending, Class<T> type) {
 		this.type = type;
 		this.ascendingComparison = ascending;
+	}
+
+	public WritableComparator(Class<T> type) {
+		this.type = type;
 	}
 	
 	@Override
@@ -63,29 +75,41 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	}
 	
 	@Override
-	public int compareToReference(TypeComparator<T> referencedComparator) {
-		T otherRef = ((WritableComparator<T>) referencedComparator).reference;
-		int comp = otherRef.compareTo(reference);
+	@SuppressWarnings("unchecked")
+	public int compareToReference(TypeComparator<T> referencedComparator) throws ClassCastException {
+		final T otherRef = ((WritableComparator<T>) referencedComparator).reference;
+		return this.compare(otherRef, reference);
+	}
+	
+	@Override
+	@SuppressWarnings("unchecked")
+	public int compare(T first, T second) throws ClassCastException {
+		final int comp;
+		if (this.hadoopComparator != null) {
+			comp = this.hadoopComparator.compare(first, second);
+			return comp;
+		}
+		else if (first instanceof Comparable) {
+			comp = ((Comparable) first).compareTo(second);
+		}
+		else {
+			throw new ClassCastException("Class " + first.getClass() + " does not implement the Comparable" +
+					"interface and no custom comparator is specified.");
+		}
 		return ascendingComparison ? comp : -comp;
 	}
 	
 	@Override
-	public int compare(T first, T second) {
-		int comp = first.compareTo(second);
-		return ascendingComparison ? comp : -comp;
-	}
-	
-	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException, ClassCastException {
 		ensureReferenceInstantiated();
 		ensureTempReferenceInstantiated();
 		
 		reference.readFields(firstSource);
 		tempReference.readFields(secondSource);
-		
-		int comp = reference.compareTo(tempReference);
-		return ascendingComparison ? comp : -comp;
+
+		return this.compare(reference, tempReference);
 	}
+
 	
 	@Override
 	public boolean supportsNormalizedKey() {
