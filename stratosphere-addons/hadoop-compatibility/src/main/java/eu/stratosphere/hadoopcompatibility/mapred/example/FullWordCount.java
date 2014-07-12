@@ -31,7 +31,9 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 import eu.stratosphere.api.java.DataSet;
@@ -41,6 +43,9 @@ import eu.stratosphere.hadoopcompatibility.mapred.HadoopInputFormat;
 import eu.stratosphere.hadoopcompatibility.mapred.HadoopOutputFormat;
 import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapred.lib.LongSumReducer;
+import org.apache.hadoop.mapred.lib.TokenCountMapper;
+
+import java.io.IOException;
 
 /**
  * Implements a Hadoop wordcount on Stratosphere with all business logic code in Hadoop.
@@ -72,7 +77,7 @@ public class FullWordCount {
 		final DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 
 		//Set the mapper implementation to be used.
-		final Mapper mapper = InstantiationUtil.instantiate(HadoopWordCountVariations.TestTokenizeMap.class,
+		final Mapper mapper = InstantiationUtil.instantiate(TestTokenizeMap.class,
 				Mapper.class);
 		final DataSet<Tuple2<Text, LongWritable>> words = text.flatMap( new HadoopMapFunction<LongWritable,Text,
 				Text, LongWritable>(mapper, Text.class, LongWritable.class));
@@ -110,5 +115,14 @@ public class FullWordCount {
 		// Output & Execute
 		set.output(hadoopOutputFormat);
 		env.execute("Full WordCount");
+	}
+
+	public static class TestTokenizeMap<K> extends TokenCountMapper<K> {
+		@Override
+		public void map(K key, Text value, OutputCollector<Text, LongWritable> output, Reporter reporter)
+				throws IOException {
+			final Text strippedValue = new Text(value.toString().toLowerCase().replaceAll("\\W+", " "));
+			super.map(key, strippedValue, output, reporter);
+		}
 	}
 }
