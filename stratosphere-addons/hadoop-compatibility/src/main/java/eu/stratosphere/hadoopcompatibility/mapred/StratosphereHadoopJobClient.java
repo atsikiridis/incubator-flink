@@ -50,12 +50,20 @@ public class StratosphereHadoopJobClient extends JobClient {
 	private final ExecutionEnvironment environment;
 	private Configuration hadoopConf;
 
+	public StratosphereHadoopJobClient() throws IOException {
+		this(new Configuration());
+	}
 
-	public StratosphereHadoopJobClient(Configuration hadoopConf) {
+	public StratosphereHadoopJobClient(JobConf jobConf) throws IOException {
+		this(new Configuration(jobConf));
+	}
+
+	public StratosphereHadoopJobClient(Configuration hadoopConf) throws IOException{
 		this(hadoopConf, (ExecutionEnvironment.getExecutionEnvironment()));
 	}
 
-	public StratosphereHadoopJobClient(Configuration hadoopConf, ExecutionEnvironment environment) {
+	public StratosphereHadoopJobClient(Configuration hadoopConf, ExecutionEnvironment environment) throws IOException {
+		super(new JobConf(hadoopConf));
 		this.hadoopConf = hadoopConf;
 		this.environment = environment;
 	}
@@ -86,7 +94,7 @@ public class StratosphereHadoopJobClient extends JobClient {
 		final Class mapOutputValueClass = hadoopJobConf.getMapOutputValueClass();
 		final FlatMapOperator mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass,
 				mapOutputValueClass));
-		mapped.setParallelism( getMapParallelism(hadoopJobConf));
+		mapped.setParallelism(getMapParallelism(hadoopJobConf));
 
 		//Partitioning
 		final Partitioner partitioner = InstantiationUtil.instantiate(hadoopJobConf.getPartitionerClass());
