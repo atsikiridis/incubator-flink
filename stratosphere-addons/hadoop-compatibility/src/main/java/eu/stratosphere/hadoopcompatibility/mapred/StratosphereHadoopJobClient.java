@@ -13,11 +13,10 @@
 
 package eu.stratosphere.hadoopcompatibility.mapred;
 
-import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.operators.FlatMapOperator;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
-import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
 import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopGrouper;
@@ -59,7 +58,6 @@ public class StratosphereHadoopJobClient extends JobClient {
 	public StratosphereHadoopJobClient(Configuration hadoopConf, ExecutionEnvironment environment) {
 		this.hadoopConf = hadoopConf;
 		this.environment = environment;
-		this.environment.setDegreeOfParallelism(1); //TODO make configurable.
 	}
 
 	/**
@@ -70,7 +68,6 @@ public class StratosphereHadoopJobClient extends JobClient {
 		final RunningJob job = jobClient.submitJob(hadoopJobConf);
 		job.waitForCompletion();
 		return job;
-
 	}
 
 	/**
@@ -87,7 +84,9 @@ public class StratosphereHadoopJobClient extends JobClient {
 		final Mapper mapper = InstantiationUtil.instantiate(hadoopJobConf.getMapperClass());
 		final Class mapOutputKeyClass = hadoopJobConf.getMapOutputKeyClass();
 		final Class mapOutputValueClass = hadoopJobConf.getMapOutputValueClass();
-		final DataSet mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass, mapOutputValueClass));
+		final FlatMapOperator mapped = input.flatMap(new HadoopMapFunction(mapper, mapOutputKeyClass,
+				mapOutputValueClass));
+		mapped.setParallelism( getMapParallelism(hadoopJobConf));
 
 		//Partitioning
 		final Partitioner partitioner = InstantiationUtil.instantiate(hadoopJobConf.getPartitionerClass());
@@ -100,8 +99,7 @@ public class StratosphereHadoopJobClient extends JobClient {
 		final RawComparator comparator = hadoopJobConf.getOutputValueGroupingComparator();
 		final UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(comparator, mapOutputKeyClass));
 
-		//Sorting. TODO Custom sorting should be implemented.
-		final SortedGrouping sortedGrouping = grouping.sortGroup(0, Order.ASCENDING);
+		//Sorting. TODO Custom sorting should be implemented. Ascending by default.
 
 		//Is a combiner specified in the jobConf?
 		final Class<? extends Reducer> combinerClass = hadoopJobConf.getCombinerClass();
@@ -116,13 +114,13 @@ public class StratosphereHadoopJobClient extends JobClient {
 
 		final ReduceGroupOperator reduceOp;
 		if (combinerClass != null && combinerClass.equals(reducerClass)) {
-			reduceOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(reducer, mapOutputKeyClass,
+			reduceOp = grouping.reduceGroup(new HadoopReduceFunction(reducer, mapOutputKeyClass,
 					mapOutputValueClass));
 			reduceOp.setCombinable(true);  //The combiner is the same class as the reducer.
 		}
 		else if(combinerClass != null) {  //We have a different combiner.
 			final Reducer combiner = InstantiationUtil.instantiate(combinerClass);
-			final ReduceGroupOperator combineOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(combiner,
+			final ReduceGroupOperator combineOp = grouping.reduceGroup(new HadoopReduceFunction(combiner,
 					mapOutputKeyClass, mapOutputValueClass));
 			combineOp.setCombinable(true);
 			final HadoopReduceFunction reduceFunction = new HadoopReduceFunction(reducer, outputKeyClass,
@@ -130,12 +128,13 @@ public class StratosphereHadoopJobClient extends JobClient {
 			reduceOp = combineOp.groupBy(0).reduceGroup(reduceFunction);
 		}
 		else { // No combiner.
-			reduceOp = sortedGrouping.reduceGroup(new HadoopReduceFunction(reducer, outputKeyClass, outputValueClass));
+			reduceOp = grouping.reduceGroup(new HadoopReduceFunction(reducer, outputKeyClass, outputValueClass));
 		}
+		reduceOp.setParallelism(1);
 
 		//Wrapping the output format.
 		final HadoopOutputFormat outputFormat = new HadoopOutputFormat(hadoopJobConf.getOutputFormat() ,hadoopJobConf);
-		reduceOp.output(outputFormat);
+		reduceOp.output(outputFormat).setParallelism(1);
 
 		return new DummyStratosphereRunningJob(hadoopJobConf.getJobName());
 	}
@@ -154,6 +153,14 @@ public class StratosphereHadoopJobClient extends JobClient {
 		inputFormatClasses[0] = inputFormat.getRecordReader(firstSplit, jobConf, reporter).createKey().getClass();
 		inputFormatClasses[1] = inputFormat.getRecordReader(firstSplit, jobConf, reporter).createValue().getClass();
 		return inputFormatClasses;
+	}
+
+	private int getMapParallelism(JobConf conf) {
+		return conf.getInt("mapred.tasktracker.map.tasks.maximum", 1);
+	}
+
+	private int getReduceParallelism(JobConf conf) {  //TODO: Not supported by the driver yet.
+		return conf.getInt("mapred.tasktracker.reduce.tasks.maximum", 1);
 	}
 	
 	@Override
