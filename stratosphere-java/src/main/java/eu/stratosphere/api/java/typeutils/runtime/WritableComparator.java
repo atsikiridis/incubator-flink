@@ -44,20 +44,20 @@ public class WritableComparator<T extends Writable> extends TypeComparator<T> {
 	
 	private transient Kryo kryo;
 
-	public WritableComparator(Comparator<T> hadoopComparator, Class<T> type) {
-		this(type);
-		this.hadoopComparator = hadoopComparator;
-	}
-	
-	public WritableComparator(boolean ascending, Class<T> type) {
+	public WritableComparator(boolean ascending, Class<T> type, Comparator<T> hadoopComparator) {
 		this.type = type;
 		this.ascendingComparison = ascending;
+		this.hadoopComparator = hadoopComparator;
 	}
 
-	public WritableComparator(Class<T> type) {
-		this.type = type;
+	public WritableComparator(boolean ascending, Class<T> type) {
+		this(ascending, type, null);
 	}
-	
+
+	public void setHadoopComparator(Comparator<T> hadoopComparator) {
+		this.hadoopComparator = hadoopComparator;
+	}
+
 	@Override
 	public int hash(T record) {
 		return record.hashCode();
@@ -142,7 +142,7 @@ public class WritableComparator<T extends Writable> extends TypeComparator<T> {
 	
 	@Override
 	public TypeComparator<T> duplicate() {
-		return new WritableComparator<T>(ascendingComparison, type);
+		return new WritableComparator<T>(ascendingComparison, type, hadoopComparator);
 	}
 	
 	// --------------------------------------------------------------------------------------------

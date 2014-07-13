@@ -28,7 +28,7 @@ import java.util.Comparator;
 public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> implements AtomicType<T> {
 	
 	private final Class<T> typeClass;
-	private Comparator<T> hadoopComparator;  //TODO Can we have an RawComparator?
+	private Comparator<T> hadoopComparator;  //TODO Can we have a RawComparator?
 	
 	public WritableTypeInfo(Class<T> typeClass) {
 		if (typeClass == null) {
@@ -44,9 +44,9 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
 		if (this.hadoopComparator != null) {
-			return new WritableComparator(hadoopComparator, typeClass);
+			return new WritableComparator(sortOrderAscending, typeClass, hadoopComparator);
 		}
-		if(Comparable.class.isAssignableFrom(typeClass)) {
+		else if(Comparable.class.isAssignableFrom(typeClass)) {
 			return new WritableComparator(sortOrderAscending, typeClass);
 		}
 		else {

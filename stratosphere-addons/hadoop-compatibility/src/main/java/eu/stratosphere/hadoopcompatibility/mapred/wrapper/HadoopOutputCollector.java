@@ -25,7 +25,7 @@ import java.io.IOException;
  * A Hadoop OutputCollector that basically wraps a Stratosphere OutputCollector.
  * This implies that on each call of collect() the data is actually collected by Stratosphere.
  */
-public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT extends Writable>
+public class HadoopOutputCollector<KEYOUT extends Writable, VALUEOUT extends Writable>
 		implements OutputCollector<KEYOUT,VALUEOUT> {
 
 	private Collector<Tuple2<KEYOUT,VALUEOUT>> collector;

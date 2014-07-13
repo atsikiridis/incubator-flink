@@ -13,11 +13,9 @@
 
 package eu.stratosphere.hadoopcompatibility.mapred;
 
-import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
-import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnsortedGrouping;
 import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopGrouper;

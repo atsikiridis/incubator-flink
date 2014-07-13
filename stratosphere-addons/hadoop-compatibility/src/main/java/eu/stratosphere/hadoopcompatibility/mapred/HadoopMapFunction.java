@@ -25,12 +25,8 @@ import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopOutputCollector;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -43,8 +39,8 @@ import java.io.Serializable;
 /**
  * The wrapper for a Hadoop Mapper (mapred API).
  */
-public class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
-		KEYOUT extends WritableComparable, VALUEOUT extends Writable> extends FlatMapFunction<Tuple2<KEYIN,VALUEIN>,
+public class HadoopMapFunction<KEYIN extends Writable, VALUEIN extends Writable,
+		KEYOUT extends Writable, VALUEOUT extends Writable> extends FlatMapFunction<Tuple2<KEYIN,VALUEIN>,
 		Tuple2<KEYOUT,VALUEOUT>> implements Serializable, ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>> {
 
 	private static final long serialVersionUID = 1L;
