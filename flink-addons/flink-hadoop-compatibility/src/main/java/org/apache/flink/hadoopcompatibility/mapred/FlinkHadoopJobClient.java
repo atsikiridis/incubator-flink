@@ -1,33 +1,38 @@
-/***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- **********************************************************************************************************************/
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-package eu.stratosphere.hadoopcompatibility.mapred;
+package org.apache.flink.hadoopcompatibility.mapred;
 
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.operators.FlatMapOperator;
-import eu.stratosphere.api.java.operators.ReduceGroupOperator;
-import eu.stratosphere.api.java.operators.UnsortedGrouping;
-import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
-import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopGrouper;
-import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopPartitioner;
-import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
-import eu.stratosphere.util.InstantiationUtil;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.FlatMapOperator;
+import org.apache.flink.api.java.operators.ReduceGroupOperator;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopIdentityReduce;
+import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopGroupingKeySelector;
+import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopPartitioner;
+import org.apache.flink.types.TypeInformation;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.InputFormat;
-import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobID;
@@ -35,7 +40,6 @@ import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.Partitioner;
 import org.apache.hadoop.mapred.Reducer;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
@@ -43,43 +47,43 @@ import org.apache.hadoop.mapred.TaskCompletionEvent;
 import java.io.IOException;
 
 /**
- * The user's view of a Hadoop Job executed on a Stratosphere cluster.
+ * The user's view of a Hadoop Job executed on a Flink cluster.
  */
-public class StratosphereHadoopJobClient extends JobClient {
+public class FlinkHadoopJobClient extends JobClient {
 
 	private final ExecutionEnvironment environment;
 	private Configuration hadoopConf;
 
-	public StratosphereHadoopJobClient() throws IOException {
+	public FlinkHadoopJobClient() throws IOException {
 		this(new Configuration());
 	}
 
-	public StratosphereHadoopJobClient(JobConf jobConf) throws IOException {
+	public FlinkHadoopJobClient(JobConf jobConf) throws IOException {
 		this(new Configuration(jobConf));
 	}
 
-	public StratosphereHadoopJobClient(Configuration hadoopConf) throws IOException{
+	public FlinkHadoopJobClient(Configuration hadoopConf) throws IOException{
 		this(hadoopConf, (ExecutionEnvironment.getExecutionEnvironment()));
 	}
 
-	public StratosphereHadoopJobClient(Configuration hadoopConf, ExecutionEnvironment environment) throws IOException {
+	public FlinkHadoopJobClient(Configuration hadoopConf, ExecutionEnvironment environment) throws IOException {
 		super(new JobConf(hadoopConf));
 		this.hadoopConf = hadoopConf;
 		this.environment = environment;
 	}
 
 	/**
-	 * Submits a Hadoop job to Stratoshere (as described by the JobConf) and returns after the job has been completed.
+	 * Submits a Hadoop job to Flink (as described by the JobConf) and returns after the job has been completed.
 	 */
 	public static RunningJob runJob(JobConf hadoopJobConf) throws IOException{
-		final StratosphereHadoopJobClient jobClient = new StratosphereHadoopJobClient(hadoopJobConf);
+		final FlinkHadoopJobClient jobClient = new FlinkHadoopJobClient(hadoopJobConf);
 		final RunningJob job = jobClient.submitJob(hadoopJobConf);
 		job.waitForCompletion();
 		return job;
 	}
 
 	/**
-	 * Submits a job to Stratosphere and returns a RunningJob instance which can be scheduled and monitored
+	 * Submits a job to Flink and returns a RunningJob instance which can be scheduled and monitored
 	 * without blocking by default. Use waitForCompletion() to block until the job is finished.
 	 */
 	@Override
@@ -87,7 +91,7 @@ public class StratosphereHadoopJobClient extends JobClient {
 	public RunningJob submitJob(JobConf hadoopJobConf) throws IOException{
 
 		//setting up the inputFormat for the job
-		final DataSet input = environment.createInput(getStratosphereInputFormat(hadoopJobConf));
+		final DataSet input = environment.createInput(getFlinkInputFormat(hadoopJobConf));
 
 		final Mapper mapper = InstantiationUtil.instantiate(hadoopJobConf.getMapperClass());
 		final Class mapOutputKeyClass = hadoopJobConf.getMapOutputKeyClass();
@@ -105,7 +109,7 @@ public class StratosphereHadoopJobClient extends JobClient {
 
 		//Grouping
 		final RawComparator comparator = hadoopJobConf.getOutputValueGroupingComparator();
-		final UnsortedGrouping grouping = identity.groupBy(new HadoopGrouper(comparator, mapOutputKeyClass));
+		final UnsortedGrouping grouping = identity.groupBy(new HadoopGroupingKeySelector(comparator, mapOutputKeyClass));
 
 		//Sorting. TODO Custom sorting should be implemented. Ascending by default.
 
@@ -144,23 +148,23 @@ public class StratosphereHadoopJobClient extends JobClient {
 		final HadoopOutputFormat outputFormat = new HadoopOutputFormat(hadoopJobConf.getOutputFormat() ,hadoopJobConf);
 		reduceOp.output(outputFormat).setParallelism(1);
 
-		return new DummyStratosphereRunningJob(hadoopJobConf.getJobName());
+		return new DummyFlinkRunningJob(hadoopJobConf.getJobName());
 	}
 
 	@SuppressWarnings("unchecked")
-	private HadoopInputFormat getStratosphereInputFormat(JobConf jobConf) throws IOException{
+	private HadoopInputFormat getFlinkInputFormat(JobConf jobConf) throws IOException{
 		final InputFormat inputFormat = jobConf.getInputFormat();
-		final Class[] inputFormatClasses = getInputFormatClasses(inputFormat, jobConf);
-		return new HadoopInputFormat(inputFormat, inputFormatClasses[0], inputFormatClasses[1], jobConf);
-	}
+		final Class inputFormatClass = inputFormat.getClass();
 
-	private Class[] getInputFormatClasses(InputFormat inputFormat, JobConf jobConf) throws IOException{
-		final Class[] inputFormatClasses = new Class[2];
-		final InputSplit firstSplit = inputFormat.getSplits(jobConf, 0)[0];
-		final Reporter reporter = new HadoopDummyReporter();
-		inputFormatClasses[0] = inputFormat.getRecordReader(firstSplit, jobConf, reporter).createKey().getClass();
-		inputFormatClasses[1] = inputFormat.getRecordReader(firstSplit, jobConf, reporter).createValue().getClass();
-		return inputFormatClasses;
+		final TypeInformation keyTypeInfo = TypeExtractor.createTypeInfo(InputFormat.class, inputFormatClass,
+				0, null, null);
+		final Class keyClass = keyTypeInfo.getTypeClass();
+
+		final TypeInformation valueTypeInfo = TypeExtractor.createTypeInfo(InputFormat.class, inputFormatClass,
+				1, null, null);
+		final Class valueClass = valueTypeInfo.getTypeClass();
+
+		return new HadoopInputFormat(inputFormat, keyClass, valueClass, jobConf);
 	}
 
 	private int getMapParallelism(JobConf conf) {
@@ -181,11 +185,11 @@ public class StratosphereHadoopJobClient extends JobClient {
 		return this.hadoopConf;
 	}
 
-	private class DummyStratosphereRunningJob implements RunningJob {
+	private class DummyFlinkRunningJob implements RunningJob {
 
 		private final String jobName;
 
-		public DummyStratosphereRunningJob( String jobName) {
+		public DummyFlinkRunningJob( String jobName) {
 			this.jobName = jobName;
 		}
 
