@@ -52,36 +52,36 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 
 	private static final long serialVersionUID = 1L;
 
-	private transient Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT> mapper;
+	private transient Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> mapper;
 	private transient JobConf jobConf;
 
-	private transient HadoopOutputCollector<KEYOUT,VALUEOUT> outputCollector;
+	private transient HadoopOutputCollector<KEYOUT, VALUEOUT> outputCollector;
 	private transient Reporter reporter;
-	
+
 	/**
 	 * Maps a Hadoop Mapper (mapred API) to a Flink FlatMapFunction.
-	 * 
+	 *
 	 * @param hadoopMapper The Hadoop Mapper to wrap.
 	 */
 	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper) {
 		this(hadoopMapper, new JobConf());
 	}
-	
+
 	/**
 	 * Maps a Hadoop Mapper (mapred API) to a Flink FlatMapFunction.
 	 * The Hadoop Mapper is configured with the provided JobConf.
-	 * 
+	 *
 	 * @param hadoopMapper The Hadoop Mapper to wrap.
-	 * @param conf The JobConf that is used to configure the Hadoop Mapper.
+	 * @param conf         The JobConf that is used to configure the Hadoop Mapper.
 	 */
 	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper, JobConf conf) {
-		if(hadoopMapper == null) {
+		if (hadoopMapper == null) {
 			throw new NullPointerException("Mapper may not be null.");
 		}
-		if(conf == null) {
+		if (conf == null) {
 			throw new NullPointerException("JobConf may not be null.");
 		}
-		
+
 		this.mapper = hadoopMapper;
 		this.jobConf = conf;
 	}
@@ -90,13 +90,20 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		this.mapper.configure(jobConf);
-		
+
 		this.reporter = new HadoopDummyReporter();
 		this.outputCollector = new HadoopOutputCollector<KEYOUT, VALUEOUT>();
 	}
 
+	/**
+	 * Wrap a hadoop map() function call and use a Flink collector to collect the result values.
+	 *
+	 * @param value The input value.
+	 * @param out   The collector for emitting result values.
+	 * @throws Exception
+	 */
 	@Override
-	public void flatMap(final Tuple2<KEYIN,VALUEIN> value, final Collector<Tuple2<KEYOUT,VALUEOUT>> out) 
+	public void flatMap(final Tuple2<KEYIN, VALUEIN> value, final Collector<Tuple2<KEYOUT, VALUEOUT>> out)
 			throws Exception {
 		outputCollector.setFlinkCollector(out);
 		mapper.map(value.f0, value.f1, outputCollector, reporter);
@@ -104,18 +111,19 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public TypeInformation<Tuple2<KEYOUT,VALUEOUT>> getProducedType() {	
+	public TypeInformation<Tuple2<KEYOUT, VALUEOUT>> getProducedType() {
 		Class<KEYOUT> outKeyClass = (Class<KEYOUT>) TypeExtractor.getParameterType(Mapper.class, mapper.getClass(), 2);
-		Class<VALUEOUT> outValClass = (Class<VALUEOUT>)TypeExtractor.getParameterType(Mapper.class, mapper.getClass(), 3);
-		
+		Class<VALUEOUT> outValClass = (Class<VALUEOUT>) TypeExtractor.getParameterType(Mapper.class, mapper.getClass(), 3);
+
 		final WritableTypeInfo<KEYOUT> keyTypeInfo = new WritableTypeInfo<KEYOUT>(outKeyClass);
 		final WritableTypeInfo<VALUEOUT> valueTypleInfo = new WritableTypeInfo<VALUEOUT>(outValClass);
-		return new TupleTypeInfo<Tuple2<KEYOUT,VALUEOUT>>(keyTypeInfo, valueTypleInfo);
+		return new TupleTypeInfo<Tuple2<KEYOUT, VALUEOUT>>(keyTypeInfo, valueTypleInfo);
 	}
 
 	/**
 	 * Custom serialization methods.
-	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
+	 *
+	 * @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
 	 */
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		out.writeObject(mapper.getClass());
@@ -124,10 +132,11 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 
 	@SuppressWarnings("unchecked")
 	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
-		Class<Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT>> mapperClass = 
-				(Class<Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT>>)in.readObject();
+		Class<Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>> mapperClass =
+				(Class<Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>>) in.readObject();
 		mapper = InstantiationUtil.instantiate(mapperClass);
-		
+
 		jobConf = new JobConf();
 		jobConf.readFields(in);
 	}
+}

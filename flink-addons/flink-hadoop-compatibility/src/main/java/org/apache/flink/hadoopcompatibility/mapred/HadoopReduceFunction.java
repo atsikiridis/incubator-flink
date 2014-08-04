@@ -127,7 +127,7 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		
 		out.writeObject(reducer.getClass());
-		jobConf.write(out);		
+		jobConf.write(out);
 	}
 
 	@SuppressWarnings("unchecked")
