@@ -24,7 +24,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
@@ -214,7 +216,13 @@ public class HadoopWordCountVariations {
 			conf.setOutputKeyClass(Text.class);
 			conf.setOutputValueClass(LongWritable.class);
 
-			FlinkHadoopJobClient.runJob(conf);
+			//FlinkHadoopJobClient client = new FlinkHadoopJobClient(conf);
+			JobClient client = new JobClient(conf);
+			client.submitJob(conf).waitForCompletion();
+			client.close();
+			System.out.println(client.getFs());
+			System.out.println(client.getStagingAreaDir());
+			//client.getMapTaskReports(JobID.forName(conf.getJobName()));
 		}
 
 		public static class ValueConfMapper extends MapReduceBase implements Mapper {

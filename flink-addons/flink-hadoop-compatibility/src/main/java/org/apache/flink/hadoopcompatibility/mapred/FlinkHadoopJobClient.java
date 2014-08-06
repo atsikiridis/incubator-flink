@@ -85,14 +85,15 @@ public final class FlinkHadoopJobClient extends JobClient {
 
 	public FlinkHadoopJobClient(final Configuration hadoopConf, final ExecutionEnvironment environment)
 			throws IOException {
+		super(new JobConf(hadoopConf));
 		this.hadoopConf = hadoopConf;
 		this.environment = environment;
 	}
 
-	@Override
-	public void init(final JobConf conf) throws IOException {
-		this.hadoopConf = conf;
-	}
+	//@Override     Check with environment
+	//public void init(final JobConf conf) throws IOException {
+	//	this.hadoopConf = conf;
+	//}
 
 	/**
 	 * Submits a Hadoop job to Flink (as described by the JobConf) and returns after the job has been completed.
@@ -368,30 +369,25 @@ public final class FlinkHadoopJobClient extends JobClient {
 		this.environment = environment;
 	}
 
-
 	@Override
-	public synchronized void close() throws IOException { throw new UnsupportedOperationException(); }
+	public void init(JobConf conf) {
 
-	@Override
-	public synchronized FileSystem getFs() throws IOException { throw new UnsupportedOperationException(); }
+	}
 
-	@Override
-	public RunningJob submitJob(String jobFile) throws IOException { throw new UnsupportedOperationException(); }
+	//@Override OK for local
+	//public synchronized void close() throws IOException { throw new UnsupportedOperationException(); }
 
-	@Override
-	public RunningJob submitJobInternal(JobConf job) throws IOException { throw new UnsupportedOperationException(); }
+	//@Override ok local
+	//public synchronized FileSystem getFs() throws IOException { throw new UnsupportedOperationException(); }
 
-	@Override
-	public RunningJob getJob(JobID jobid) throws IOException { throw new UnsupportedOperationException(); }
+	//@Override       // TODO Unsupported this gives running job hmmmmm
+	//public RunningJob submitJobInternal(JobConf job) throws IOException { throw new UnsupportedOperationException(); }
 
-	@Override
-	public RunningJob getJob(String jobid) throws IOException { throw new UnsupportedOperationException(); }
+	//@Override       //TODO needs support..
+	//public RunningJob getJob(JobID jobid) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
 	public TaskReport[] getMapTaskReports(JobID jobId) throws IOException { throw new UnsupportedOperationException(); }
-
-	@Override
-	public TaskReport[] getMapTaskReports(String jobId) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
 	public TaskReport[] getReduceTaskReports(JobID jobId) throws IOException { throw new UnsupportedOperationException(); }
@@ -403,9 +399,6 @@ public final class FlinkHadoopJobClient extends JobClient {
 	public TaskReport[] getSetupTaskReports(JobID jobId) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
-	public TaskReport[] getReduceTaskReports(String jobId) throws IOException { throw new UnsupportedOperationException(); }
-
-	@Override
 	public void displayTasks(JobID jobId, String type, String state) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
@@ -414,8 +407,8 @@ public final class FlinkHadoopJobClient extends JobClient {
 	@Override
 	public ClusterStatus getClusterStatus(boolean detailed) throws IOException { throw new UnsupportedOperationException(); }
 
-	@Override
-	public org.apache.hadoop.fs.Path getStagingAreaDir() throws IOException { throw new UnsupportedOperationException(); }
+	//@Override   OK for local
+	//public org.apache.hadoop.fs.Path getStagingAreaDir() throws IOException { throw new UnsupportedOperationException(); }
 
 	public JobStatus[] jobsToComplete() throws IOException { throw new UnsupportedOperationException(); }
 
@@ -428,12 +421,6 @@ public final class FlinkHadoopJobClient extends JobClient {
 	}
 
 	@Override
-	public void setTaskOutputFilter(JobClient.TaskStatusFilter newValue) { throw new UnsupportedOperationException(); }
-
-	@Override
-	public JobClient.TaskStatusFilter getTaskOutputFilter() { throw new UnsupportedOperationException(); }
-
-	@Override
 	public int run(java.lang.String[] argv) throws Exception { throw new UnsupportedOperationException(); }
 
 	@Override
@@ -442,8 +429,8 @@ public final class FlinkHadoopJobClient extends JobClient {
 	@Override
 	public int getDefaultReduces() throws IOException { throw new UnsupportedOperationException(); }
 
-	@Override
-	public Path getSystemDir() { throw new UnsupportedOperationException(); }
+	//@Override ok local
+	//public Path getSystemDir() { throw new UnsupportedOperationException(); }
 
 	@Override
 	public JobQueueInfo[] getQueues() throws IOException { throw new UnsupportedOperationException(); }
