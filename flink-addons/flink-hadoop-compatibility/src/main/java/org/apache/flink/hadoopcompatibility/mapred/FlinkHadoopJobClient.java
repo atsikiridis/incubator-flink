@@ -18,16 +18,16 @@
 
 package org.apache.flink.hadoopcompatibility.mapred;
 
+import java.io.IOException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.ReduceGroupOperator;
-import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.apache.flink.api.java.operators.HadoopReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
@@ -47,18 +47,13 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.JobQueueInfo;
 import org.apache.hadoop.mapred.JobStatus;
-import org.apache.hadoop.mapred.Partitioner;
-import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
 import org.apache.hadoop.mapred.TaskReport;
-import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapreduce.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
-
-import java.io.IOException;
 
 /**
  * The user's view of a Hadoop Job executed on a Flink cluster.
@@ -134,25 +129,11 @@ public final class FlinkHadoopJobClient extends JobClient {
 
 		if (reduceParallelism == 0) {
 			mapped.output(outputFormat).setParallelism(mapParallelism);
-		}
-		else {
-			//Partitioning
-			final Class<? extends Partitioner> partitionerClass = hadoopJobConf.getPartitionerClass();
-			if (! partitionerClass.equals(HashPartitioner.class)) {
-				throw new UnsupportedOperationException("Custom partitioners are not supported yet.");
-			}
-			final UnsortedGrouping<?> grouping = mapped.groupBy(0);
-
-			final GroupReduceFunction reduceFunction = new HadoopReduceFunction(hadoopJobConf);
-			final ReduceGroupOperator<Tuple2<?,?>,Tuple2<?,?>> reduceOp = grouping.reduceGroup(reduceFunction);
-			final Class<? extends Reducer> combinerClass = hadoopJobConf.getCombinerClass();
-			if (combinerClass != null) {
-				reduceOp.setCombinable(true);
-			}
-
-			reduceOp.setParallelism(reduceParallelism);
+		} else {
+			HadoopReduceOperator reduced = mapped.reduce(new HadoopMapredReduceFunction(hadoopJobConf));
+			reduced.setParallelism(reduceParallelism);
 			//Wrapping the output format.
-			reduceOp.output(outputFormat).setParallelism(reduceParallelism);
+			reduced.output(outputFormat).setParallelism(reduceParallelism);
 		}
 
 		return new DummyFlinkRunningJob(hadoopJobConf.getJobName());

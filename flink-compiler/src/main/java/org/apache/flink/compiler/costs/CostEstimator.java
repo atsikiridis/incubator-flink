@@ -218,6 +218,10 @@ public abstract class CostEstimator {
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
 			addStreamedNestedLoopsCosts(secondInput, firstInput, availableMemory, driverCosts, costWeight);
 			break;
+		case HADOOP_REDUCE:
+			// Hadoop reduce does the sort in the driver
+			addLocalSortCost(firstInput, driverCosts);
+			break;
 		default:
 			throw new CompilerException("Unknown local strategy: " + n.getDriverStrategy().name());
 		}

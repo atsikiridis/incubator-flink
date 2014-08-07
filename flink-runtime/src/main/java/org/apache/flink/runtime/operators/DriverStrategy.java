@@ -66,6 +66,8 @@ public enum DriverStrategy {
 	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, 1),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
 	SORTED_GROUP_COMBINE(GroupReduceCombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, 2),
+	// TODO
+	HADOOP_REDUCE(HadoopReduceDriver.class, null, MATERIALIZING, 0),
 
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
 	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, 2),

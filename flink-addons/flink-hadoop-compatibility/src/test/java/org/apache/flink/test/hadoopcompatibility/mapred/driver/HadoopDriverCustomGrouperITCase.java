@@ -18,14 +18,16 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred.driver;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import java.util.Arrays;
 
-public class HadoopDriverDifferentReducerTypeITCase extends JavaProgramTestBase{
+import org.apache.flink.test.hadoopcompatibility.HadoopTestBase;
+import org.apache.flink.test.testdata.WordCountData;
+
+public class HadoopDriverCustomGrouperITCase extends HadoopTestBase {
 
 	protected String textPath;
 	protected String resultPath;
+
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -35,18 +37,37 @@ public class HadoopDriverDifferentReducerTypeITCase extends JavaProgramTestBase{
 
 	@Override
 	protected void postSubmit() throws Exception {
-		final String[] counts = WordCountData.COUNTS.split("\n");
-		final String[] hashcodeCounts = new String[counts.length];
-		for (int i=0; i < counts.length; i++) {
-			final String[] curKeyValue = counts[i].split(" ");
-			hashcodeCounts[i] = curKeyValue[1]+" "+curKeyValue[0];
+
+		String[] expected = WordCountData.COUNTS.split("\n");
+		Arrays.sort(expected);
+		StringBuilder aggExpected = new StringBuilder();
+		
+		// aggregate sums of all words that begin with the same letter...
+		String first = null;
+		int sum = 0;
+		for(String s : expected) {
+			if (first == null) {
+				first = s.split(" ")[0];
+				sum = Integer.parseInt(s.split(" ")[1]);
+			} else {
+				if (first.charAt(0) == s.charAt(0)) {
+					sum += Integer.parseInt(s.split(" ")[1]);
+				} else {
+					aggExpected.append(first+" "+sum+"\n");
+					first = s.split(" ")[0];
+					sum = Integer.parseInt(s.split(" ")[1]);
+				}
+			}
 		}
-		compareResultsByLinesInMemory(StringUtils.join(hashcodeCounts, "\n"), resultPath + "/1");
+		aggExpected.append(first+" "+sum+"\n");
+
+		compareResultsByLinesInMemory(aggExpected.toString(), resultPath + "/1");
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		HadoopWordCountVariations.WordCountDifferentReducerTypes.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.WordCountCustomGrouper.main(new String[]{textPath, resultPath});
 	}
-
 }
+
+

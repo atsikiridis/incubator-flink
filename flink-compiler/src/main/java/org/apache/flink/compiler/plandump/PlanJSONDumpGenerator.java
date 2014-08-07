@@ -487,6 +487,10 @@ public class PlanJSONDumpGenerator {
 			case CO_GROUP:
 				locString = "Co-Group";
 				break;
+				
+			case HADOOP_REDUCE:
+				locString = "Hadoop-Reduce";
+				break;
 
 			default:
 				locString = p.getDriverStrategy().name();

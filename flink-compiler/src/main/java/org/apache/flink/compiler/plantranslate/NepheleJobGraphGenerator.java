@@ -21,6 +21,7 @@ package org.apache.flink.compiler.plantranslate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.HadoopComparatorWrapper.HadoopComparatorFactory;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.dag.TempMode;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
@@ -83,6 +85,7 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Visitor;
+import org.apache.hadoop.io.Writable;
 
 /**
  * This component translates the optimizer's resulting plan a nephele job graph. The
@@ -797,6 +800,27 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		for(int i=0;i<ds.getNumRequiredComparators();i++) {
 			config.setDriverComparator(node.getComparator(i), i);
 		}
+		
+		if (node.getDriverStrategy() == DriverStrategy.HADOOP_REDUCE) {
+
+			//TODO BE SURE ABOUT CLASSLOADER
+			ClassLoader loader = Thread.currentThread().getContextClassLoader();
+			try {
+				Class<Writable> keyClass = node.getPactContract().getParameters().getClass("hadoop.key.class", null, loader);
+				Class<Comparator<Writable>> sortCompClass = node.getPactContract().getParameters().getClass("hadoop.sorting.comparator", null, loader);
+				Class<Comparator<Writable>> groupCompClass = node.getPactContract().getParameters().getClass("hadoop.grouping.comparator", null, loader);
+
+				HadoopComparatorFactory sortCompFactory = new HadoopComparatorFactory(keyClass, sortCompClass);
+				HadoopComparatorFactory groupCompFactory = new HadoopComparatorFactory(keyClass, groupCompClass);
+
+				config.setDriverComparator(sortCompFactory, 0);
+				config.setDriverComparator(groupCompFactory, 1);
+			}
+			catch (ClassNotFoundException e) {
+				System.out.println("getting sortcomp and groupcomp failed!");
+			}
+		}
+
 		// assign memory, file-handles, etc.
 		assignDriverResources(node, config);
 		return vertex;

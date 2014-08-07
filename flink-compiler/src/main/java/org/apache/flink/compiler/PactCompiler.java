@@ -37,20 +37,21 @@ import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.HadoopReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
-import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
-import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import org.apache.flink.compiler.costs.CostEstimator;
 import org.apache.flink.compiler.costs.DefaultCostEstimator;
 import org.apache.flink.compiler.dag.BinaryUnionNode;
@@ -64,6 +65,7 @@ import org.apache.flink.compiler.dag.DataSourceNode;
 import org.apache.flink.compiler.dag.FilterNode;
 import org.apache.flink.compiler.dag.FlatMapNode;
 import org.apache.flink.compiler.dag.GroupReduceNode;
+import org.apache.flink.compiler.dag.HadoopReduceNode;
 import org.apache.flink.compiler.dag.IterationNode;
 import org.apache.flink.compiler.dag.MapNode;
 import org.apache.flink.compiler.dag.MapPartitionNode;
@@ -693,6 +695,9 @@ public class PactCompiler {
 			}
 			else if (c instanceof GroupReduceOperatorBase) {
 				n = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) c);
+			}
+			else if (c instanceof HadoopReduceOperatorBase) {
+				n = new HadoopReduceNode((HadoopReduceOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof JoinOperatorBase) {
 				n = new JoinNode((JoinOperatorBase<?, ?, ?, ?>) c);

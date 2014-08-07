@@ -16,30 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.hadoopcompatibility.mapred.driver;
+package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.test.hadoopcompatibility.HadoopTestBase;
-import org.apache.flink.test.testdata.WordCountData;
+import java.io.Serializable;
 
-public class HadoopDriverDifferentCombinerITCase extends HadoopTestBase {
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 
-    protected String textPath;
-	protected String resultPath;
-
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
+public final class HadoopKeyExtractingMapper<T, K> extends MapFunction<T, Tuple2<T, K>> implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
+	
+	private final KeySelector<T, K> keySelector;
+	
+	private final Tuple2<T, K> tuple = new Tuple2<T, K>();
+	
+	
+	public HadoopKeyExtractingMapper(KeySelector<T, K> keySelector) {
+		this.keySelector = keySelector;
 	}
-
+	
 	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		HadoopWordCountVariations.WordCountDifferentCombiner.main(new String[]{textPath, resultPath});
+	public Tuple2<T, K> map(T value) throws Exception {
+		
+		K key = keySelector.getKey(value);
+		tuple.f1 = key;
+		tuple.f0 = value;
+		
+		return tuple;
 	}
 }
-

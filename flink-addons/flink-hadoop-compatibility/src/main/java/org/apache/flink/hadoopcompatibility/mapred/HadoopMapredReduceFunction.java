@@ -22,9 +22,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Comparator;
+import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.HadoopReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -39,6 +42,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.Partitioner;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 
@@ -46,9 +50,9 @@ import org.apache.hadoop.mapred.Reporter;
  * This wrapper maps a Hadoop Reducer (mapred API) to a non-combinable Flink GroupReduceFunction. 
  */
 @SuppressWarnings("rawtypes")
-public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
+public final class HadoopMapredReduceFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
 										KEYOUT extends WritableComparable, VALUEOUT extends Writable> 
-					extends RichGroupReduceFunction<Tuple2<KEYIN,VALUEIN>,Tuple2<KEYOUT,VALUEOUT>> 
+					extends HadoopReduceFunction<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
 					implements ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>>, Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -65,7 +69,7 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
  	 * 
 	 * @param hadoopReducer The Hadoop Reducer to wrap.
 	 */
-	public HadoopReduceFunction(Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopReducer) {
+	public HadoopMapredReduceFunction(Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopReducer) {
 		this(hadoopReducer, new JobConf());
 	}
 	
@@ -75,7 +79,7 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 	 * @param hadoopReducer The Hadoop Reducer to wrap.
 	 * @param conf The JobConf that is used to configure the Hadoop Reducer.
 	 */
-	public HadoopReduceFunction(Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopReducer, JobConf conf) {
+	public HadoopMapredReduceFunction(Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopReducer, JobConf conf) {
 		if(hadoopReducer == null) {
 			throw new NullPointerException("Reducer may not be null.");
 		}
@@ -100,11 +104,11 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 	}
 
 	@Override
-	public void reduce(final Iterable<Tuple2<KEYIN,VALUEIN>> values, final Collector<Tuple2<KEYOUT,VALUEOUT>> out)
+	public void reduce(final Iterator<Tuple2<KEYIN,VALUEIN>> values, final Collector<Tuple2<KEYOUT,VALUEOUT>> out)
 			throws Exception {
-		
+
 		reduceCollector.setFlinkCollector(out);
-		valueIterator.set(values.iterator());
+		valueIterator.set(values);
 		reducer.reduce(valueIterator.getCurrentKey(), valueIterator, reduceCollector, reporter);
 	}
 
@@ -139,5 +143,53 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 		
 		jobConf = new JobConf();
 		jobConf.readFields(in);
+	}
+
+	@Override
+	public KeySelector<Tuple2<KEYIN, VALUEIN>, Integer> getHadoopKeySelector() {
+
+		final Class<Partitioner<KEYIN, VALUEIN>> partitionerClass = (Class<Partitioner<KEYIN, VALUEIN>>)jobConf.getPartitionerClass();
+		return new HadoopKeySelector<KEYIN, VALUEIN>(partitionerClass);
+	}
+
+
+
+	@Override
+	public Class<KEYIN> getHadoopReduceInKeyClass() {
+		return (Class<KEYIN>)jobConf.getOutputKeyClass();
+	}
+
+	@Override
+	public Class<Comparator<KEYIN>> getHadoopSortComparatorClass() {
+		Comparator<KEYIN> comp = (Comparator<KEYIN>)jobConf.getOutputKeyComparator();
+		return (Class<Comparator<KEYIN>>)comp.getClass();
+	}
+
+	@Override
+	public Class<Comparator<KEYIN>> getHadoopGroupingComparatorClass() {
+		Comparator<KEYIN> comp = (Comparator<KEYIN>)jobConf.getOutputValueGroupingComparator();
+		return (Class<Comparator<KEYIN>>)comp.getClass();
+	}
+	
+	public static class HadoopKeySelector<K, V> implements KeySelector<Tuple2<K,V>, Integer> {
+		private static final long serialVersionUID = 1L;
+		private transient Partitioner<K,V> partitioner;
+		private Class<Partitioner<K,V>> partitionerClass;
+		
+		public HadoopKeySelector(Class<Partitioner<K,V>> partitionerClass) {
+			this.partitionerClass = partitionerClass;
+			this.partitioner = InstantiationUtil.instantiate(partitionerClass);
+		}
+
+		@Override
+		public Integer getKey(Tuple2<K, V> value) {
+			
+			if(this.partitioner == null) {
+				this.partitioner = InstantiationUtil.instantiate(partitionerClass);
+			}
+			
+			return partitioner.getPartition(value.f0, value.f1, Integer.MAX_VALUE);
+		}
+
 	}
 }

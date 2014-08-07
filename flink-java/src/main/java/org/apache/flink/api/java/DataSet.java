@@ -34,6 +34,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FormattingMapper;
+import org.apache.flink.api.java.functions.HadoopReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
@@ -54,6 +55,7 @@ import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.HadoopReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -344,6 +346,14 @@ public abstract class DataSet<T> {
 		}
 		return new ReduceOperator<T>(this, clean(reducer), Utils.getCallLocationName());
 	}
+	
+	public <KEYIN, VALUEIN, KEYOUT, VALUEOUT> HadoopReduceOperator<KEYIN, VALUEIN, KEYOUT, VALUEOUT> reduce(HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("HadoopReduce function must not be null.");
+		}
+		return new HadoopReduceOperator<KEYIN, VALUEIN, KEYOUT, VALUEOUT>(((DataSet<Tuple2<KEYIN, VALUEIN>>)this), reducer);
+	}
+	
 	
 	/**
 	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>
