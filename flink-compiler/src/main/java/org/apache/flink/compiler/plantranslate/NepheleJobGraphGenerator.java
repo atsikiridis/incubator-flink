@@ -809,12 +809,16 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				Class<Writable> keyClass = node.getPactContract().getParameters().getClass("hadoop.key.class", null, loader);
 				Class<Comparator<Writable>> sortCompClass = node.getPactContract().getParameters().getClass("hadoop.sorting.comparator", null, loader);
 				Class<Comparator<Writable>> groupCompClass = node.getPactContract().getParameters().getClass("hadoop.grouping.comparator", null, loader);
+				Class<Comparator<Writable>> combineGroupCompClass = node.getPactContract().getParameters().getClass("hadoop.grouping.combine.comparator", null, loader);
+
 
 				HadoopComparatorFactory sortCompFactory = new HadoopComparatorFactory(keyClass, sortCompClass);
 				HadoopComparatorFactory groupCompFactory = new HadoopComparatorFactory(keyClass, groupCompClass);
+				HadoopComparatorFactory combineGroupCompFactory = new HadoopComparatorFactory(keyClass, combineGroupCompClass);
 
 				config.setDriverComparator(sortCompFactory, 0);
 				config.setDriverComparator(groupCompFactory, 1);
+				config.setDriverComparator(combineGroupCompFactory, 2);
 			}
 			catch (ClassNotFoundException e) {
 				System.out.println("getting sortcomp and groupcomp failed!");

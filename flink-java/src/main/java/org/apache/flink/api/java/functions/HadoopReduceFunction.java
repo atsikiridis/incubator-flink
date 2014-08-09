@@ -93,5 +93,7 @@ public abstract class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> ext
 	public abstract Class<Comparator<KEYIN>> getHadoopSortComparatorClass();
 	
 	public abstract Class<Comparator<KEYIN>> getHadoopGroupingComparatorClass();
+
+	public abstract Class<Comparator<KEYIN>> getHadoopCombineGroupingComparatorClass();
 	
 }

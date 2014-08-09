@@ -28,9 +28,12 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.HadoopReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.HadoopReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.HadoopKeyExtractingMapper;
+import org.apache.flink.api.java.operators.translation.TupleUnwrappingIterator;
+import org.apache.flink.api.java.operators.translation.TupleWrappingCollector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
@@ -71,9 +74,9 @@ public class HadoopReduceOperator<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		
 		// TODO check if there is a combiner in the job conf
 		
-//		if (function instanceof GenericCombine && function.getClass().getAnnotation(Combinable.class) != null) {
-//			this.combinable = true;
-//		}
+		if (function instanceof GenericCombine && function.getClass().getAnnotation(HadoopReduceFunction.Combinable.class) != null) {
+			this.combinable = true;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -130,57 +133,95 @@ public class HadoopReduceOperator<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		public HadoopReduceUnwrappingOperator(HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> udf, String name,
 				TypeInformation<Tuple2<KEYOUT, VALUEOUT>> outType, TypeInformation<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>> typeInfoWithKey, boolean combinable)
 		{
-//			super(combinable ? new TupleUnwrappingCombinableGroupReducer<IN, OUT, K>(udf) : new TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K>(udf),
-//					new UnaryOperatorInTuple2<IN, K>formation<Tuple2<K, IN>, OUT>(typeInfoWithKey, outType), new int[]{1}, name);
-			
-			super(new TupleUnwrappingNonCombinableGroupReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>(udf),
+			super(combinable ? new TupleUnwrappingCombinableGroupReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>(udf) : new TupleUnwrappingNonCombinableGroupReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>(udf),
 					new UnaryOperatorInformation<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>, Tuple2<KEYOUT, VALUEOUT>>(typeInfoWithKey, outType), new int[]{1}, name);
+			
+			//super(new TupleUnwrappingNonCombinableGroupReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>(udf),
+			//		new UnaryOperatorInformation<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>, Tuple2<KEYOUT, VALUEOUT>>(typeInfoWithKey, outType), new int[]{1}, name);
 			
 			super.setCombinable(combinable);
 			
 			this.getParameters().setClass("hadoop.key.class", function.getHadoopReduceInKeyClass());
 			this.getParameters().setClass("hadoop.sorting.comparator", function.getHadoopSortComparatorClass());
 			this.getParameters().setClass("hadoop.grouping.comparator", function.getHadoopGroupingComparatorClass());
-			
+			this.getParameters().setClass("hadoop.grouping.combine.comparator", function.getHadoopCombineGroupingComparatorClass());
+
+
 		}
 	}
 		
 		// --------------------------------------------------------------------------------------------
-		
-//	@Combinable
-//	public static final class TupleUnwrappingCombinableGroupReducer<IN, OUT, K> extends WrappingFunction<DummyHadoopReduceFunction<IN, OUT>>
-//		implements GenericGroupReduce<Tuple2<IN, K>, OUT>, GenericCombine<Tuple2<IN, K>>
-//	{
-//
-//		private static final long serialVersionUID = 1L;
-//		
-//		private TupleUnwrappingIterator<IN, K> iter;
-//		private TupleWrappingCollector<IN, K> coll; 
-//		
-//		private TupleUnwrappingCombinableGroupReducer(DummyHadoopReduceFunction<IN, OUT> wrapped) {
-//			super(wrapped);
-//			this.iter = new TupleUnwrappingIterator<IN, K>();
-//			this.coll = new TupleWrappingCollector<IN, K>(this.iter);
-//		}
-//
-//		@Override
-//		public void reduce(Iterator<Tuple2<IN, K>> values, Collector<OUT> out) throws Exception {
-//			iter.set(values);
-//			this.wrappedFunction.reduce(iter, out);
-//		}
-//
-//		@Override
-//		public void combine(Iterator<Tuple2<IN, K>> values, Collector<Tuple2<IN, K>> out) throws Exception {
-//				iter.set(values);
-//				coll.set(out);
-//				this.wrappedFunction.combine(iter, coll);
-//		}
-//		
-//		@Override
-//		public String toString() {
-//			return this.wrappedFunction.toString();
-//		}
-//	}
+
+
+	public  static final class HadoopTupleWrappingCollector<IN, K>implements Collector<IN>, java.io.Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		private final HadoopTupleUnwrappingIterator<IN, K> tui;
+		private final Tuple2<IN, K> outTuple;
+
+		private Collector<Tuple2< IN, K>> wrappedCollector;
+
+
+		public HadoopTupleWrappingCollector(HadoopTupleUnwrappingIterator<IN, K> tui) {
+			this.tui = tui;
+			this.outTuple = new Tuple2<IN, K>();
+		}
+
+		public void set(Collector<Tuple2< IN, K>> wrappedCollector) {
+			this.wrappedCollector = wrappedCollector;
+		}
+
+		@Override
+		public void close() {
+			this.wrappedCollector.close();
+		}
+
+		@Override
+		public void collect(IN record) {
+			this.outTuple.f1 = this.tui.getLastKey();
+			this.outTuple.f0 = record;
+			this.wrappedCollector.collect(outTuple);
+		}
+
+	}
+
+
+	@HadoopReduceFunction.Combinable
+	public static final class TupleUnwrappingCombinableGroupReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
+			extends WrappingFunction<HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>>
+			implements GenericGroupReduce<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>, Tuple2<KEYOUT, VALUEOUT>>, GenericCombine<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>> {
+
+		private HadoopTupleUnwrappingIterator<Tuple2<KEYIN,VALUEIN>, Integer> iter;
+		private HadoopTupleWrappingCollector<Tuple2<KEYIN,VALUEIN>, Integer> coll;
+
+		protected TupleUnwrappingCombinableGroupReducer(final HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> wrappedFunction) {
+			super(wrappedFunction);
+			this.iter = new HadoopTupleUnwrappingIterator<Tuple2<KEYIN,VALUEIN>, Integer>();
+			this.coll = new HadoopTupleWrappingCollector<Tuple2<KEYIN, VALUEIN>, Integer>(this.iter);
+		}
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String toString() {
+			return this.wrappedFunction.toString();
+		}
+
+
+		@Override
+		public void reduce(final Iterator<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>> values, final Collector<Tuple2<KEYOUT, VALUEOUT>> out) throws Exception {
+			iter.set(values);
+			this.wrappedFunction.reduce(iter, out);
+		}
+
+		@Override
+		public void combine(final Iterator<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>> values, final Collector<Tuple2<Tuple2<KEYIN, VALUEIN>, Integer>> out) throws Exception {
+			iter.set(values);
+			coll.set(out);
+			this.wrappedFunction.combine(iter, coll);
+		}
+	}
 	
 	public static final class TupleUnwrappingNonCombinableGroupReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> 
 		extends WrappingFunction<HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>>
@@ -217,7 +258,7 @@ public class HadoopReduceOperator<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		
 		public void set(Iterator<Tuple2<T, K>> iterator) {
 			this.iterator = iterator;
-		}
+		}     //this should get upside down!
 		
 		public K getLastKey() {
 			return lastKey;

@@ -24,7 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.InvalidTypesException;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.HadoopReduceOperator;
@@ -33,7 +33,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -121,7 +122,7 @@ public final class FlinkHadoopJobClient extends JobClient {
 		final DataSource<Tuple2<?,?>> input = environment.createInput(inputFormat);
 		input.setParallelism(mapParallelism);
 
-		final FlatMapOperator<Tuple2<?,?>, Tuple2<?,?>> mapped = input.flatMap(new HadoopMapFunction(hadoopJobConf));
+		final FlatMapOperator<Tuple2<?,?>, Tuple2<?,?>> mapped = input.flatMap(new HadoopMapFunction(InstantiationUtil.instantiate(hadoopJobConf.getMapperClass()), hadoopJobConf));
 		mapped.setParallelism(mapParallelism);
 
 		final org.apache.hadoop.mapred.OutputFormat<?,?> hadoopOutputFormat = hadoopJobConf.getOutputFormat();
@@ -130,7 +131,10 @@ public final class FlinkHadoopJobClient extends JobClient {
 		if (reduceParallelism == 0) {
 			mapped.output(outputFormat).setParallelism(mapParallelism);
 		} else {
-			HadoopReduceOperator reduced = mapped.reduce(new HadoopMapredReduceFunction(hadoopJobConf));
+			HadoopReduceOperator reduced = mapped.reduce(new HadoopReduceFunction(hadoopJobConf));
+			if (hadoopJobConf.getCombinerClass() != null) {
+				reduced.setCombinable(true);
+			}
 			reduced.setParallelism(reduceParallelism);
 			//Wrapping the output format.
 			reduced.output(outputFormat).setParallelism(reduceParallelism);

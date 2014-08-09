@@ -353,7 +353,7 @@ public abstract class DataSet<T> {
 		}
 		return new HadoopReduceOperator<KEYIN, VALUEIN, KEYOUT, VALUEOUT>(((DataSet<Tuple2<KEYIN, VALUEIN>>)this), reducer);
 	}
-	
+
 	
 	/**
 	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>

@@ -170,7 +170,13 @@ public final class HadoopMapredReduceFunction<KEYIN extends WritableComparable, 
 		Comparator<KEYIN> comp = (Comparator<KEYIN>)jobConf.getOutputValueGroupingComparator();
 		return (Class<Comparator<KEYIN>>)comp.getClass();
 	}
-	
+
+	@Override
+	public Class<Comparator<KEYIN>> getHadoopCombineGroupingComparatorClass() {
+		Comparator<KEYIN> comp = (Comparator<KEYIN>)InstantiationUtil.instantiate(jobConf.getClass("mapreduce.job.combiner.group.comparator.class", getHadoopGroupingComparatorClass()));
+		return (Class<Comparator<KEYIN>>)comp.getClass();
+	}
+
 	public static class HadoopKeySelector<K, V> implements KeySelector<Tuple2<K,V>, Integer> {
 		private static final long serialVersionUID = 1L;
 		private transient Partitioner<K,V> partitioner;
