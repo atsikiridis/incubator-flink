@@ -24,8 +24,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopConfiguration;
-import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
+import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopReporter;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopOutputCollector;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
@@ -54,23 +55,24 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 
 	private static final long serialVersionUID = 1L;
 
+	private JobConf jobConf;
+
 	private transient Class<KEYOUT> keyOutClass;
 	private transient Class<VALUEOUT> valueOutClass;
+	private transient Class<KEYIN> keyinClass;
+	private transient Class<VALUEIN> valueinClass;
 	private transient Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> reducer;
 	private transient Reducer<KEYIN,VALUEIN,KEYIN,VALUEIN> combiner;
 	private transient HadoopOutputCollector<KEYIN,VALUEIN> combineCollector;
 	private transient HadoopOutputCollector<KEYOUT,VALUEOUT> reduceCollector;
-	private transient Reporter reporter;
+	private transient HadoopReporter reporter;
 	private transient ReducerTransformingIterator iterator;
-
-	private JobConf jobConf;
 
 	@SuppressWarnings("unchecked")
 	public HadoopReduceFunction(JobConf jobConf) {
 		this.keyOutClass = (Class<KEYOUT>) jobConf.getOutputKeyClass();
 		this.valueOutClass = (Class<VALUEOUT>) jobConf.getOutputValueClass();
 		this.jobConf = jobConf;
-		this.iterator = new ReducerTransformingIterator();
 	}
 
 	/**
@@ -124,6 +126,15 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		this.reporter = new HadoopReporter(getRuntimeContext());
+
+		combineCollector = new HadoopOutputCollector<KEYIN, VALUEIN>(keyinClass, valueinClass);
+		reduceCollector = new HadoopOutputCollector<KEYOUT, VALUEOUT>(keyOutClass, valueOutClass);
 	}
 
 	/**
@@ -187,10 +198,12 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 			throw new RuntimeException("Unable to instantiate the hadoop reducer", e);
 		}
 		iterator = new ReducerTransformingIterator();
+
 		keyOutClass = (Class<KEYOUT>) jobConf.getOutputKeyClass();
 		valueOutClass = (Class<VALUEOUT>) jobConf.getOutputValueClass();
-		final Class<KEYIN> mapKeyOutClass = (Class<KEYIN>) jobConf.getMapOutputKeyClass();
-		final Class<VALUEIN> mapValueOutClass = (Class<VALUEIN>) jobConf.getMapOutputValueClass();
+
+		keyinClass = (Class<KEYIN>) jobConf.getMapOutputKeyClass();
+		valueinClass = (Class<VALUEIN>) jobConf.getMapOutputValueClass();
 
 		final Class combinerClass = jobConf.getCombinerClass();
 		if (combinerClass != null) {
@@ -200,21 +213,5 @@ public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEI
 		reducer.configure(jobConf);
 		reducer = InstantiationUtil.instantiate(jobConf.getReducerClass());
 		reducer.configure(jobConf);
-
-		final Class<? extends OutputCollector> combineCollectorClass = jobConf.getClass("flink.map.collector",
-				HadoopOutputCollector.class,
-				OutputCollector.class);
-		combineCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(combineCollectorClass);
-		combineCollector.setExpectedKeyValueClasses(mapKeyOutClass, mapValueOutClass);
-
-		final Class<? extends OutputCollector> reduceCollectorClass = jobConf.getClass("flink.reduce.collector",
-				HadoopOutputCollector.class,
-				OutputCollector.class);
-		reduceCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(reduceCollectorClass);
-		reduceCollector.setExpectedKeyValueClasses(keyOutClass, valueOutClass);
-
-		reporter = InstantiationUtil.instantiate(jobConf.getClass("flink.reporter", HadoopDummyReporter.class,
-				Reporter.class));
-
 	}
 }

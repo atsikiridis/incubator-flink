@@ -19,43 +19,86 @@
 
 package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.Task;
+import org.apache.hadoop.mapreduce.StatusReporter;
+import org.apache.hadoop.util.Progress;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This is a dummy progress monitor / reporter
  *
- */
-public class HadoopDummyReporter implements Reporter {
+	*/
+	public class HadoopReporter extends StatusReporter implements Reporter {
 
-	@Override
-	public void progress() {
+	private static final int PROGRESS_STATUS_LEN_LIMIT = 512;
+
+	private Progress progress;
+
+	private AtomicBoolean progressFlag = new AtomicBoolean(false);
+	private transient Counters counters;
+
+	public HadoopReporter() {}
+
+	public HadoopReporter(RuntimeContext context) {
+		init(context);
+	}
+
+	public void init(RuntimeContext context) {
+		this.counters = new FlinkHadoopCounters(context);
+		this.progress = new Progress();
+	}
+
+	private void setProgressFlag() {
+		progressFlag.set(true);
 	}
 
 	@Override
-	public void setStatus(String status) {
+	public void progress() {
+		// indicate that progress update needs to be sent log warning
 
+	}
+	@Override
+	public void setStatus(String status) {
+		if (status.length() > PROGRESS_STATUS_LEN_LIMIT) {
+			status = status.substring(0, PROGRESS_STATUS_LEN_LIMIT);
+		}
+		progress.setStatus(status);
+		// indicate that progress update needs to be sent
+		setProgressFlag();
 	}
 
 	@Override
 	public Counter getCounter(Enum<?> name) {
-		return null;
+		return counters == null ? null : counters.findCounter(name);
 	}
 
 	@Override
 	public Counter getCounter(String group, String name) {
-		return null;
+		Counters.Counter counter = null;
+		if (counters != null) {
+			counter = counters.findCounter(group, name);
+		}
+		return counter;
 	}
 
 	@Override
 	public void incrCounter(Enum<?> key, long amount) {
-
+		if (counters != null) {
+			counters.findCounter(key).increment(1);
+		}
 	}
 
 	@Override
 	public void incrCounter(String group, String counter, long amount) {
-
+		if (counters != null) {
+			counters.incrCounter(group, counter, amount);
+		}
 	}
 
 	@Override
@@ -65,7 +108,6 @@ public class HadoopDummyReporter implements Reporter {
 
 	@Override
 	public float getProgress() {
-		return 0;
+		return this.progress.getProgress();
 	}
-
 }
