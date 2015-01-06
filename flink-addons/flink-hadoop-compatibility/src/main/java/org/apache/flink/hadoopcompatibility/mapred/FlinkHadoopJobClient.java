@@ -131,7 +131,14 @@ public final class FlinkHadoopJobClient extends JobClient {
 		if (reduceParallelism == 0) {
 			mapped.output(outputFormat).setParallelism(mapParallelism);
 		} else {
-			HadoopReduceOperator reduced = mapped.reduce(new HadoopReduceFunction(hadoopJobConf));
+			HadoopReduceOperator reduced = null;
+			try {
+				reduced = mapped.reduce(new HadoopMapredReduceFunction(hadoopJobConf.getReducerClass().newInstance()));
+			} catch (InstantiationException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
+			}
 			if (hadoopJobConf.getCombinerClass() != null) {
 				reduced.setCombinable(true);
 			}

@@ -24,20 +24,18 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Comparator;
-import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCombine;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.CombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.Collector;
 
 /**
  * The abstract base class for group reduce functions. Group reduce functions process groups of elements.
  * They may aggregate them to a single value, or produce multiple result values for each group.
  * <p>
  * For a reduce functions that works incrementally by combining always two elements, see 
- * {@link ReduceFunction}, called via {@link org.apache.flink.api.java.DataSet#reduce(ReduceFunction)}.
+ * {@link org.apache.flink.api.common.functions.GroupReduceFunction}, called via {@link org.apache.flink.api.java.DataSet#reduce(org.apache.flink.api.common.functions.GroupReduceFunction)}.
  * <p>
  * The basic syntax for using a grouped GroupReduceFunction is as follows:
  * <pre><blockquote>
@@ -54,8 +52,8 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
-public abstract class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends AbstractFunction 
-						implements GenericGroupReduce<Tuple2<KEYIN, VALUEIN>, Tuple2<KEYOUT, VALUEOUT>>, GenericCombine<Tuple2<KEYIN, VALUEIN>>, Serializable {
+public abstract class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends AbstractRichFunction
+						implements GroupReduceFunction<Tuple2<KEYIN, VALUEIN>, Tuple2<KEYOUT, VALUEOUT>>, CombineFunction<Tuple2<KEYIN, VALUEIN>>, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -69,8 +67,7 @@ public abstract class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> ext
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	@Override
-	public abstract void reduce(Iterator<Tuple2<KEYIN, VALUEIN>> values, Collector<Tuple2<KEYOUT, VALUEOUT>> out) throws Exception;
+
 	
 	// --------------------------------------------------------------------------------------------
 	

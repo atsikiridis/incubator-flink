@@ -19,8 +19,9 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.flink.api.common.functions.GenericCombine;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.CombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -28,11 +29,13 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
+import java.util.List;
+
 
 /**
- * @see GenericGroupReduce
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class HadoopReduceOperatorBase<IN, OUT, FT extends GenericGroupReduce<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
+public class HadoopReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 	/**
 	 * The ordering for the order inside a reduce group.
@@ -57,7 +60,12 @@ public class HadoopReduceOperatorBase<IN, OUT, FT extends GenericGroupReduce<IN,
 	public HadoopReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(udf, operatorInfo, name);
 	}
-	
+
+	@Override
+	protected List<OUT> executeOnCollections(final List<IN> inputData, final RuntimeContext runtimeContext, final boolean mutableObjectSafeMode) throws Exception {
+		throw new UnsupportedOperationException();
+	}
+
 	public HadoopReduceOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
@@ -91,15 +99,15 @@ public class HadoopReduceOperatorBase<IN, OUT, FT extends GenericGroupReduce<IN,
 	/**
 	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
 	 * data before the actual group reduce operations. Combinable user-defined functions
-	 * must implement the interface {@link GenericCombine}.
+	 * must implement the interface {@link org.apache.flink.api.common.functions.CombineFunction}.
 	 * 
 	 * @param combinable Flag to mark the group reduce operation as combinable.
 	 */
 	public void setCombinable(boolean combinable) {
 		// sanity check
-		if (combinable && !GenericCombine.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
+		if (combinable && !CombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
 			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " + 
-					GenericCombine.class.getName());
+					CombineFunction.class.getName());
 		} else {
 			this.combinable = combinable;
 		}

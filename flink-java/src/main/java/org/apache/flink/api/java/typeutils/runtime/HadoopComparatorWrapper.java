@@ -84,9 +84,9 @@ public class HadoopComparatorWrapper<T extends Writable> extends TypeComparator<
 	public int compare(Tuple2<Tuple2<T,?>,?> first, Tuple2<Tuple2<T,?>,?> second) throws ClassCastException {
 		return this.writableComparator.compare(first.f0.f0, second.f0.f0);
 	}
-	
+
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException, ClassCastException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException, ClassCastException {
 		ensureReferenceInstantiated();
 		ensureTempReferenceInstantiated();
 					
@@ -126,7 +126,17 @@ public class HadoopComparatorWrapper<T extends Writable> extends TypeComparator<
 	public TypeComparator<Tuple2<Tuple2<T,?>,?>> duplicate() {
 		return new HadoopComparatorWrapper<T>(comparatorType, type);
 	}
-	
+
+	@Override
+	public int extractKeys(final Object record, final Object[] target, final int index) {
+		return 0;
+	}
+
+	@Override
+	public TypeComparator[] getFlatComparators() {
+		return new TypeComparator[0];
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// unsupported normalization
 	// --------------------------------------------------------------------------------------------
@@ -189,8 +199,8 @@ public class HadoopComparatorWrapper<T extends Writable> extends TypeComparator<
 
 		@Override
 		public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {
-			this.type = (Class<Writable>)config.getClass("hadoop.comparator.type", null);
-			this.comparatorType = (Class<Comparator<Writable>>)config.getClass("hadoop.comparator.comparatortype", null);
+			this.type = config.getClass("hadoop.comparator.type", null, cl);
+			this.comparatorType = config.getClass("hadoop.comparator.comparatortype", null, cl);
 		}
 
 		@Override

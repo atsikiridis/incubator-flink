@@ -24,9 +24,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -51,13 +50,13 @@ public class HadoopReduceDriverTest {
 //	@Test
 	public void testAllReduceDriverImmutableEmpty() {
 		try {
-			TestTaskContext<GenericGroupReduce<Tuple3<IntWritable, String, Integer>, Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-					new TestTaskContext<GenericGroupReduce<Tuple3<IntWritable, String, Integer>, Tuple2<String, Integer>>, Tuple2<String,Integer>>(16*1024*1024, true);
+			TestTaskContext<GroupReduceFunction<Tuple3<IntWritable, String, Integer>, Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+					new TestTaskContext<GroupReduceFunction<Tuple3<IntWritable, String, Integer>, Tuple2<String, Integer>>, Tuple2<String,Integer>>(16*1024*1024, true);
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
 			MutableObjectIterator<Tuple2<String, Integer>> input = EmptyMutableObjectIterator.get();
-			TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true});
+			TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
 			context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 			
 			
@@ -80,8 +79,8 @@ public class HadoopReduceDriverTest {
 //	@Test
 	public void testAllReduceDriverImmutable() {
 		try { 
-			TestTaskContext<GenericGroupReduce<Tuple2<Tuple2<IntWritable, String>, Integer>, Tuple2<IntWritable, String>>, Tuple2<IntWritable, String>> context =
-					new TestTaskContext<GenericGroupReduce<Tuple2<Tuple2<IntWritable, String>, Integer>, Tuple2<IntWritable, String>>, Tuple2<IntWritable,String>>(16*1024*1024, true);
+			TestTaskContext<GroupReduceFunction<Tuple2<Tuple2<IntWritable, String>, Integer>, Tuple2<IntWritable, String>>, Tuple2<IntWritable, String>> context =
+					new TestTaskContext<GroupReduceFunction<Tuple2<Tuple2<IntWritable, String>, Integer>, Tuple2<IntWritable, String>>, Tuple2<IntWritable,String>>(16*1024*1024, true);
 			
 			List<Tuple2<Tuple2<IntWritable, String>, Integer>> data = new ArrayList<Tuple2<Tuple2<IntWritable, String>, Integer>>();
 			
@@ -144,13 +143,13 @@ public class HadoopReduceDriverTest {
 //	@Test
 	public void testAllReduceDriverMutable() {
 		try {
-			TestTaskContext<GenericGroupReduce<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-					new TestTaskContext<GenericGroupReduce<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
+			TestTaskContext<GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+					new TestTaskContext<GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
 			
 			List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 			TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
 			MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer());
-			TypeComparator<Tuple2<StringValue, IntValue>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true});
+			TypeComparator<Tuple2<StringValue, IntValue>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
 			
 			GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer());
 			
@@ -183,55 +182,59 @@ public class HadoopReduceDriverTest {
 	//  Test UDFs
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ConcatSumReducer extends GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+	public static final class ConcatSumReducer implements GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+		
 
 		@Override
-		public void reduce(Iterator<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
-			Tuple2<String, Integer> current = values.next();
-			
-			while (values.hasNext()) {
-				Tuple2<String, Integer> next = values.next();
+		public void reduce(final Iterable<Tuple2<String, Integer>> values, final Collector<Tuple2<String, Integer>> out) throws Exception {
+			Iterator<Tuple2<String, Integer>> iter = values.iterator();
+			Tuple2<String, Integer> current = iter.next();
+
+			while (iter.hasNext()) {
+				Tuple2<String, Integer> next = iter.next();
 				next.f0 = current.f0 + next.f0;
 				next.f1 = current.f1 + next.f1;
 				current = next;
 			}
-			
+
 			out.collect(current);
 		}
 	}
 	
-	public static final class ConcatSumMutableReducer extends GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
+	public static final class ConcatSumMutableReducer implements GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
 
 		@Override
-		public void reduce(Iterator<Tuple2<StringValue, IntValue>> values, Collector<Tuple2<StringValue, IntValue>> out) {
-			Tuple2<StringValue, IntValue> current = values.next();
-			
-			while (values.hasNext()) {
-				Tuple2<StringValue, IntValue> next = values.next();
+		public void reduce(final Iterable<Tuple2<StringValue, IntValue>> values, final Collector<Tuple2<StringValue, IntValue>> out) throws Exception {
+			Iterator<Tuple2<StringValue, IntValue>> iter = values.iterator();
+			Tuple2<StringValue, IntValue> current = iter.next();
+
+			while (iter.hasNext()) {
+				Tuple2<StringValue, IntValue> next = iter.next();
 				next.f0.append(current.f0);
 				next.f1.setValue(current.f1.getValue() + next.f1.getValue());
 				current = next;
 			}
-			
+
 			out.collect(current);
 		}
 	}
 	
-	public static final class MyRF extends GroupReduceFunction<Tuple2<Tuple2<IntWritable, String>, Integer>, Tuple2<IntWritable, String>> {
+	public static final class MyRF implements GroupReduceFunction<Tuple2<Tuple2<IntWritable, String>, Integer>, Tuple2<IntWritable, String>> {
+
 
 		@Override
-		public void reduce(Iterator<Tuple2<Tuple2<IntWritable, String>, Integer>> values,
-				Collector<Tuple2<IntWritable, String>> out) throws Exception {
+		public void reduce(final Iterable<Tuple2<Tuple2<IntWritable, String>, Integer>> values, final Collector<Tuple2<IntWritable, String>> out) throws Exception {
+			Iterator<Tuple2<Tuple2<IntWritable, String>, Integer>> iter = values.iterator();
 			int sum = 0;
 			String str = "";
-			while(values.hasNext()) {
-				Tuple2<Tuple2<IntWritable, String>, Integer> t = values.next();
+			while(iter.hasNext()) {
+				Tuple2<Tuple2<IntWritable, String>, Integer> t = iter.next();
 				sum += t.f0.f0.get();
 				str += t.f0.f1;
 			}
-			
+
 			out.collect(new Tuple2<IntWritable, String>(new IntWritable(sum), str));
-			
+
 		}
 	}
 	

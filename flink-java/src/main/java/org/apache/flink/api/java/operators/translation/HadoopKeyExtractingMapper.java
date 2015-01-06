@@ -21,10 +21,10 @@ package org.apache.flink.api.java.operators.translation;
 import java.io.Serializable;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-public final class HadoopKeyExtractingMapper<T, K> extends MapFunction<T, Tuple2<T, K>> implements Serializable {
+public final class HadoopKeyExtractingMapper<T, K> implements MapFunction<T, Tuple2<T, K>>, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	

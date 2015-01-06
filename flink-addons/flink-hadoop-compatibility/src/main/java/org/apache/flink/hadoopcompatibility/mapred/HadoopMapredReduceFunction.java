@@ -23,7 +23,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Comparator;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.HadoopReduceFunction;
@@ -103,14 +102,6 @@ public final class HadoopMapredReduceFunction<KEYIN extends WritableComparable, 
 		this.valueIterator = new HadoopTupleUnwrappingIterator<KEYIN, VALUEIN>(inKeyClass);
 	}
 
-	@Override
-	public void reduce(final Iterator<Tuple2<KEYIN,VALUEIN>> values, final Collector<Tuple2<KEYOUT,VALUEOUT>> out)
-			throws Exception {
-
-		reduceCollector.setFlinkCollector(out);
-		valueIterator.set(values);
-		reducer.reduce(valueIterator.getCurrentKey(), valueIterator, reduceCollector, reporter);
-	}
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -175,6 +166,18 @@ public final class HadoopMapredReduceFunction<KEYIN extends WritableComparable, 
 	public Class<Comparator<KEYIN>> getHadoopCombineGroupingComparatorClass() {
 		Comparator<KEYIN> comp = (Comparator<KEYIN>)InstantiationUtil.instantiate(jobConf.getClass("mapreduce.job.combiner.group.comparator.class", getHadoopGroupingComparatorClass()));
 		return (Class<Comparator<KEYIN>>)comp.getClass();
+	}
+
+	@Override
+	public Tuple2<KEYIN, VALUEIN> combine(final Iterable<Tuple2<KEYIN, VALUEIN>> values) throws Exception {
+		return null;
+	}
+
+	@Override
+	public void reduce(final Iterable<Tuple2<KEYIN, VALUEIN>> values, final Collector<Tuple2<KEYOUT, VALUEOUT>> out) throws Exception {
+		reduceCollector.setFlinkCollector(out);
+		valueIterator.set(values.iterator());
+		reducer.reduce(valueIterator.getCurrentKey(), valueIterator, reduceCollector, reporter);
 	}
 
 	public static class HadoopKeySelector<K, V> implements KeySelector<Tuple2<K,V>, Integer> {
