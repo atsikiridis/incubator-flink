@@ -26,7 +26,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapredReduceFunction;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
