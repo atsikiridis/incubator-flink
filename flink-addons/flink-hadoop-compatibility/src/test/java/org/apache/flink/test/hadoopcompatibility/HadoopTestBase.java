@@ -32,7 +32,7 @@ public abstract class HadoopTestBase extends JavaProgramTestBase {
 	 */
 	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
-		readAllResultLines(list, resultPath, false);
+		readAllResultLines(list, resultPath);
 
 		String[] result = list.toArray(new String[list.size()]);
 		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
